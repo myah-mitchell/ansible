@@ -1,0 +1,8 @@
+---
+- name: Include Firewall (ufw) Setup Tasks
+  ansible.builtin.include_tasks: ufw.yml
+  args:
+    apply:
+      become: true
+  when: FIREWALL|bool and firewall_service == "ufw"
+

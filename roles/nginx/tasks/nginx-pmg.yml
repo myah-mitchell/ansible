@@ -1,0 +1,21 @@
+---
+#- name: Create PMG Nginx File
+#  ansible.builtin.copy:
+#    src: files/nginx-site-pmg
+#    dest: /etc/nginx/sites-available/default
+#    owner: root
+#    group: root
+#    mode: '0644'
+#    directory_mode: '0755'
+#  notify: restart nginx
+
+- name: Create PMG Nginx File
+  ansible.builtin.template:
+    src: files/nginx-site-pmg
+    dest: /etc/nginx/sites-available/default
+    owner: root
+    group: root
+    mode: '0644'
+    trim_blocks: true
+    lstrip_blocks: true
+  notify: restart nginx

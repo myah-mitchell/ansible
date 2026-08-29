@@ -1,0 +1,36 @@
+---
+- name: Include Proxmox Repo Signing Key
+  ansible.builtin.include_tasks: proxmox-repo-key.yml
+
+- name: Include Legacy PVE/Ceph apt Entry Cleanup
+  ansible.builtin.include_tasks: pve-legacy-cleanup.yml
+
+- name: Add Enterprise PVE (Proxmox) Repo
+  ansible.builtin.deb822_repository:
+    name: pve-enterprise
+    types: deb
+    uris: https://enterprise.proxmox.com/debian/pve
+    suites: "{{ ansible_facts.distribution_release }}"
+    components: pve-enterprise
+    signed_by: /usr/share/keyrings/proxmox-archive-keyring.gpg
+    state: present
+
+- name: Remove No Subscription PVE (Proxmox) Repo
+  ansible.builtin.deb822_repository:
+    name: pve-no-subscription
+    state: absent
+
+- name: Add Enterprise Ceph Repo
+  ansible.builtin.deb822_repository:
+    name: ceph-enterprise
+    types: deb
+    uris: "https://enterprise.proxmox.com/debian/ceph-{{ pve_ceph_release }}"
+    suites: "{{ ansible_facts.distribution_release }}"
+    components: enterprise
+    signed_by: /usr/share/keyrings/proxmox-archive-keyring.gpg
+    state: present
+
+- name: Remove No Subscription Ceph Repo
+  ansible.builtin.deb822_repository:
+    name: ceph-no-subscription
+    state: absent

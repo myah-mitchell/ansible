@@ -1,0 +1,7 @@
+---
+#### MOSH role installs mosh and opens its UDP port range through the firewall.
+#### mosh itself bootstraps over SSH (already handled by the ssh role) — the
+#### only thing this role owns is the package and the UDP hole for the
+#### actual session traffic.
+MOSH: true
+mosh_udp_port_range: "60000:61000"

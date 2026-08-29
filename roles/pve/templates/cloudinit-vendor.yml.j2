@@ -1,0 +1,19 @@
+#cloud-config
+
+package_update: true
+package_upgrade: true
+package_reboot_if_required: true
+packages:
+  - git
+  - ansible
+
+runcmd:
+  - git clone https://github.com/{{ github_user }}/ansible /tmp/ansible
+{% if ansible_private_repo_token %}
+  - git clone https://x-access-token:{{ ansible_private_repo_token }}@github.com/{{ github_user }}/ansible-private /tmp/ansible-private
+  - cp /tmp/ansible-private/hosts.yml /tmp/ansible/hosts.yml
+  - mkdir -p /tmp/ansible/group_vars/all
+  - cp /tmp/ansible-private/group_vars/all/private.yml /tmp/ansible/group_vars/all/private.yml
+{% endif %}
+  - cd /tmp/ansible && ansible-galaxy install -r requirements.yml
+  - ansible-playbook -i /tmp/ansible/hosts.yml -c local /tmp/ansible/provision.yml -e '{"target":"ubuntu_docker", "server_password":"", "short_name":"{{ short_name }}", "abbr_name":"{{ abbr_name }}", "location_abbr":"{{ location_abbr }}", "domain_name":"{{ domain_name }}"}'

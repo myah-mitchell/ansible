@@ -1,0 +1,9 @@
+---
+
+- name: Update Journald Max Disk Usage 
+  lineinfile:
+    dest: /etc/systemd/journald.conf
+    regexp: "^#?SystemMaxUse.*$"
+    line: "SystemMaxUse=100M"
+    state: present
+  notify: restart journald

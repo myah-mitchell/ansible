@@ -1,0 +1,26 @@
+---
+- name: Install Rsyslog
+  ansible.builtin.apt:
+    name:
+      - rsyslog
+    state: present
+    update_cache: false
+  retries: 3
+  delay: 5
+
+- name: Create Rsyslog Config File
+  ansible.builtin.template:
+    src: templates/remote.j2 
+    dest: /etc/rsyslog.d/remote.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart rsyslog
+
+- name: Update Rsyslog Logrotate 
+  lineinfile:
+    dest: /etc/logrotate.d/rsyslog
+    regexp: "^\tweekly.*"
+    line: "	daily"
+    state: present
+  notify: restart logrotate

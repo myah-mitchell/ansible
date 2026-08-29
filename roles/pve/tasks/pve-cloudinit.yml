@@ -1,0 +1,82 @@
+---
+- block:
+
+  - block:
+    - name: Check for Snippets Folder
+      ansible.builtin.stat:
+        path: /mnt/pve/{{ pve_ceph_fs[0]['name'] }}/snippets/
+      register: _snippets_folder
+
+    - name: Create Snippets Folder
+      ansible.builtin.command:
+        cmd: pvesm set {{ pve_ceph_fs[0]['name'] }} --content iso,vztmpl,snippets
+      when: not _snippets_folder['stat']['exists']
+
+    - name: Install cloudinit-vendor.yml
+      ansible.builtin.template:
+        src: cloudinit-vendor.yml.j2
+        dest: /mnt/pve/{{ pve_ceph_fs[0]['name'] }}/snippets/cloudinit-vendor.yml
+        trim_blocks: true
+        lstrip_blocks: true
+      notify: template_build
+
+    - name: Install create-cloud-init-template.sh
+      ansible.builtin.template:
+        src: create-cloud-init-template.sh.j2
+        dest: /usr/local/bin/create-cloud-init-template.sh
+        trim_blocks: true
+        lstrip_blocks: true
+        mode: '0550'
+      vars:
+        _pve_vm_storage: "{{ pve_ceph_pools[0]['name'] }}"
+        _pve_fs_storage: "{{ pve_ceph_fs[0]['name'] }}"
+
+    when:
+      - pve_ceph_enabled
+      - pve_ceph_fs | length > 0
+
+  - block:
+    - name: Check for Snippets Folder
+      ansible.builtin.stat:
+        path: /var/lib/vz/snippets/
+      register: _snippets_folder
+
+    - name: Create Snippets Folder
+      ansible.builtin.command:
+        cmd: pvesm set local --content iso,backup,vztmpl,snippets
+      when: not _snippets_folder.stat.exists
+
+    - name: Install cloudinit-vendor.yml
+      ansible.builtin.template:
+        src: cloudinit-vendor.yml.j2
+        dest: /var/lib/vz/snippets/cloudinit-vendor.yml
+        trim_blocks: true
+        lstrip_blocks: true
+
+    - name: Install create-cloud-init-template.sh
+      ansible.builtin.template:
+        src: create-cloud-init-template.sh.j2
+        dest: /usr/local/bin/create-cloud-init-template.sh
+        trim_blocks: true
+        lstrip_blocks: true
+        mode: '0550'
+      vars:
+        _pve_vm_storage: "local-zfs"
+        _pve_fs_storage: "local"
+
+    when: not pve_ceph_enabled
+
+  - name: Create Cron Job to Recreate Ubuntu Template Every Week
+    ansible.builtin.cron:
+      name: Recreate Cloud-Init Template
+      minute: "0"
+      hour: "20"
+      weekday: "3"
+      job: "/usr/local/bin/create-cloud-init-template.sh > /dev/null"
+
+
+  when:
+    - (groups[target][0] is defined and inventory_hostname == groups[target][0]) or
+      inventory_hostname == target
+  tags:
+    - pve-cloudinit

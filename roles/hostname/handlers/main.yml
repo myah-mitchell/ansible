@@ -1,0 +1,4 @@
+---
+- name: update hostname
+  ansible.builtin.command:
+    cmd: hostname "{{ server_fqdn }}" 

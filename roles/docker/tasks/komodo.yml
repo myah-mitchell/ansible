@@ -1,0 +1,141 @@
+---
+- name: Install acl package (required for become_user komodo, an unprivileged user)
+  ansible.builtin.apt:
+    name: acl
+    state: present
+
+- name: Create komodo user
+  ansible.builtin.user:
+    name: komodo
+    group: docker
+    shell: /bin/bash
+    create_home: true
+
+- name: Set komodo subuid
+  ansible.builtin.lineinfile:
+    path: /etc/subuid
+    regexp: '^komodo:'
+    line: 'komodo:100000:65536'
+    create: true
+
+- name: Set komodo subgid
+  ansible.builtin.lineinfile:
+    path: /etc/subgid
+    regexp: '^komodo:'
+    line: 'komodo:100000:65536'
+    create: true
+
+- name: Add Komodo env vars to komodo bashrc
+  ansible.builtin.blockinfile:
+    path: /home/komodo/.bashrc
+    block: |
+      export XDG_RUNTIME_DIR="/run/user/$(id -u $USER)"
+      export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - Komodo env"
+
+- name: Enable linger for komodo user
+  ansible.builtin.command:
+    cmd: loginctl enable-linger komodo
+    creates: /var/lib/systemd/linger/komodo
+
+- name: Create Komodo directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - /opt/docker/builds
+    - /opt/docker/repos
+    - /opt/docker/ssl
+    - /opt/docker/stacks
+
+- name: Set ownership on /opt/docker and stacks
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: "{{ admin_name }}"
+    group: docker
+    mode: '0775'
+  loop:
+    - /opt/docker
+    - /opt/docker/stacks
+
+- name: Set ownership on Komodo managed directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: komodo
+    group: docker
+    recurse: true
+  loop:
+    - /opt/docker/builds
+    - /opt/docker/repos
+    - /opt/docker/ssl
+
+- name: Set Komodo ssl directory to root group with restricted permissions
+  ansible.builtin.file:
+    path: /opt/docker/ssl
+    owner: komodo
+    group: root
+    mode: '0700'
+
+- name: Set komodo home directory permissions
+  ansible.builtin.file:
+    path: /home/komodo
+    mode: '0700'
+
+- name: Get komodo user info
+  ansible.builtin.getent:
+    database: passwd
+    key: komodo
+
+- name: Ensure komodo runtime directory exists
+  ansible.builtin.file:
+    path: "/run/user/{{ ansible_facts.getent_passwd['komodo'][1] }}"
+    state: directory
+    owner: komodo
+    group: docker
+    mode: '0700'
+
+- name: Download Komodo periphery setup script
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/moghtech/komodo/main/scripts/setup-periphery.py
+    dest: /tmp/setup-periphery.py
+    mode: '0755'
+
+- name: Install Komodo periphery as komodo user
+  ansible.builtin.command:
+    cmd: >-
+      python3 /tmp/setup-periphery.py --user
+      --core-address="{{ komodo_core_address }}"
+      --connect-as="{{ komodo_connect_as }}"
+      {{ ('--onboarding-key="' ~ komodo_onboarding_key ~ '"') if komodo_onboarding_key else '' }}
+      {{ ('--core-public-keys="' ~ komodo_core_public_key ~ '"') if komodo_core_public_key else '' }}
+    creates: /home/komodo/.config/komodo/periphery.config.toml
+  become: true
+  become_user: komodo
+  environment:
+    HOME: /home/komodo
+    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts.getent_passwd['komodo'][1] }}"
+    DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ ansible_facts.getent_passwd['komodo'][1] }}/bus"
+  no_log: true
+
+- name: Configure Komodo root directory
+  ansible.builtin.lineinfile:
+    path: /home/komodo/.config/komodo/periphery.config.toml
+    regexp: '^root_directory'
+    line: "root_directory = \"{{ komodo_root_directory }}\""
+  become: true
+  become_user: komodo
+
+- name: Enable Komodo periphery user service
+  ansible.builtin.systemd:
+    name: periphery.service
+    enabled: true
+    state: restarted
+    scope: user
+  become: true
+  become_user: komodo
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts.getent_passwd['komodo'][1] }}"
+    DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ ansible_facts.getent_passwd['komodo'][1] }}/bus"
+
+# No UFW rule needed: Periphery runs in outbound mode (dials out to Core),
+# so there's no inbound port on this host for Komodo at all.

@@ -1,0 +1,15 @@
+---
+#### CERTIFICATE role installs Root CAs
+CERTIFICATES: true
+
+# List of {name, content} CA certs to install. Empty by default — no CAs are
+# installed unless provided. Real values belong in a private
+# group_vars/all/private.yml, not here. See group_vars/all/private.yml at the
+# repo root. Example:
+#   ca_certificates:
+#     - name: MyOrg_Root_CA
+#       content: |
+#         -----BEGIN CERTIFICATE-----
+#         ...
+#         -----END CERTIFICATE-----
+ca_certificates: []

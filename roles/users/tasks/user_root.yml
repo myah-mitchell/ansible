@@ -1,0 +1,37 @@
+---
+- name: Set root user password
+  ansible.builtin.user:
+    name: "root"
+    password: "{{ server_password | password_hash('sha512') }}"
+  when: server_password | length > 0
+
+- name: Add admin pub key to Root user
+  ansible.posix.authorized_key:
+    user: root
+    key: "{{ admin_ssh_public_keys | join('\n') }}"
+    state: present
+    exclusive: true
+  when:
+    - PVE == false
+    - admin_ssh_public_keys | length > 0
+
+- name: Add admin pub key to Root user on Proxmox
+  ansible.posix.authorized_key:
+    user: root
+    key: "{{ admin_ssh_public_keys | join('\n') }}"
+    state: present
+    exclusive: true
+    path: ~/.ssh/authorized_keys2
+  when:
+    - PVE == true
+    - admin_ssh_public_keys | length > 0
+
+- name: Add skel files to root user
+  ansible.builtin.copy:
+    src: /etc/skel/
+    dest: /root/
+    owner: root
+    group: root
+    mode: '0644'
+    directory_mode: '0755'
+    remote_src: true

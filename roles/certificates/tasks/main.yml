@@ -1,0 +1,7 @@
+---
+- name: Include Org Root CA Setup Tasks
+  ansible.builtin.include_tasks: certificates.yml
+  args:
+    apply:
+      become: true
+  when: CERTIFICATES|bool

@@ -1,0 +1,9 @@
+---
+- name: Include SSH Setup Tasks
+  ansible.builtin.include_tasks: ssh.yml
+  args:
+    apply:
+      become: true
+  when: SSH|bool
+  tags:
+    - ssh

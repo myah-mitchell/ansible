@@ -1,0 +1,3 @@
+---
+#### NGINX role installs and configures nginx
+NGINX: false

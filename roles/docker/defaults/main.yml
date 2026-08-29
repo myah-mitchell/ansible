@@ -1,0 +1,39 @@
+---
+#### DOCKER role installs and configures docker
+DOCKER: false
+
+ubuntu_release: jammy
+container_count: 4
+default_container_name: docker
+default_container_image: ubuntu
+default_container_command: sleep 1d
+
+#### KOMODO periphery agent (requires DOCKER: true)
+KOMODO: false
+
+komodo_root_directory: "/opt/docker"
+
+# PKI auth. Periphery runs in outbound mode - it dials out to Core, so
+# there's no inbound port/UFW rule needed on any host.
+#
+# komodo_core_address: Core's real address, e.g. "https://<km01-ip>:9120"
+# during bootstrap (DNS/Traefik don't exist yet for most of the fleet), or
+# its real hostname once they do.
+komodo_core_address: ""
+
+# Core's own public key - not secret, safe to commit for real once known.
+# Extract it from km01's running Core and commit the real value here - see
+# docs/komodo-bootstrap.md in docker-stacks.
+komodo_core_public_key: ""
+
+# Left blank by default. Only pass a real value via `-e` at the CLI when
+# provisioning a brand-new host - generate it fresh in Komodo's UI/API right
+# before the run, never commit a real value here. It's single-use and
+# discarded by Komodo after the first successful connect.
+komodo_onboarding_key: ""
+
+# The Server resource name/id this Periphery should connect as in Core.
+# Reuses the same short_name extra-var already passed on every provisioning
+# run, matching the <role><NN> Server-resource naming used throughout the
+# docker-stacks docs.
+komodo_connect_as: "{{ short_name }}"

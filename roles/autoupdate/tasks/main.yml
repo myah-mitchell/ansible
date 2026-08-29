@@ -1,0 +1,8 @@
+---
+- name: Include Auto-Update Tasks
+  ansible.builtin.include_tasks: auto-update.yml
+  args:
+    apply:
+      become: true
+  when: AUTOUPDATE and not PVE
+

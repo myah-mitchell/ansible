@@ -1,0 +1,26 @@
+---
+#### USERS Role setups root, admin, and ansible users
+USERS: true
+ansible_account: "ansible"
+ansible_user: "{{ ansible_account }}"
+client_account: "clientuser"
+client_user: "{{ client_account }}"
+users_ansible_setup: true
+users_admin_setup: true
+users_root_setup: true
+users_client_setup: true
+
+# SSH public keys installed per account. Empty by default — no keys are
+# installed unless provided. Real values belong in a private
+# group_vars/all/private.yml, not here. See group_vars/all/private.yml at
+# the repo root.
+#   admin_ssh_public_keys    — root and the admin_name (sudo) account
+#   ansible_ssh_public_keys  — the ansible service account
+#   client_ssh_public_keys   — client_account, the interactive end-user login.
+#                               Defaults to admin_ssh_public_keys so a single
+#                               operator's key just works out of the box;
+#                               override independently once client_account is
+#                               a different person than the admin.
+admin_ssh_public_keys: []
+ansible_ssh_public_keys: []
+client_ssh_public_keys: "{{ admin_ssh_public_keys }}"

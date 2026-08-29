@@ -1,0 +1,104 @@
+---
+- block:
+  - name: Check for Existing PVE (Proxmox) OpenSSL private key
+    ansible.builtin.stat:
+      path: /etc/ssl/private/{{ serverHostname|lower }}-pve-ssl.key
+    register: pve_tls_key
+  
+  - name: Generate a PVE (Proxmox) OpenSSL private Key (4096 bits, RSA)
+    become: false
+    delegate_to: localhost
+    community.crypto.openssl_privatekey:
+      path: /tmp/{{ serverHostname|lower }}-pve-ssl.key
+    when: not pve_tls_key.stat.exists
+  
+  - name: Install a PVE (Proxmox) OpenSSL private Key
+    ansible.builtin.copy:
+      src: /tmp/{{ serverHostname|lower }}-pve-ssl.key
+      dest: /etc/ssl/private/{{ serverHostname|lower }}-pve-ssl.key
+      owner: root
+      group: root
+      mode: '0500'
+    when: not pve_tls_key.stat.exists
+  
+  - name: Create SSL CSR Folder
+    ansible.builtin.file: 
+      path: /etc/ssl/csr
+      state: directory 
+      mode: "0755" 
+      owner: "root"
+      group: "root"
+  
+  - name: Generate a PVE (Proxmox) OpenSSL Certificate Signing Request
+    become: false
+    delegate_to: localhost
+    community.crypto.openssl_csr:
+      path: /tmp/{{ serverHostname|lower }}-pve-ssl.csr
+      privatekey_path: /tmp/{{ serverHostname|lower }}-pve-ssl.key
+      country_name: US
+      organization_name: "{{ short_name }}"
+      email_address: "{{ admin_list }}"
+      common_name: "{{ server_fqdn }}"
+      key_usage:
+        - nonRepudiation
+        - digitalSignature
+        - keyEncipherment
+      extended_key_usage:
+        - clientAuth
+        - serverAuth
+      subject_alt_name: "DNS:{{ server_fqdn }},DNS:{{ serverHostname|lower }}.{{ domain_name|lower }},DNS:{{ serverHostname|lower }},DNS:pve.{{ location_domain_name }},DNS:pve.{{ domain_name }},DNS:pve,{{ 'DNS:' + pve_cluster_FQDN + ',' if pve_cluster_FQDN else '' }}{{ 'DNS:' + pve_cluster_hostname + '.' + domain_name|lower + ',' if pve_cluster_hostname else '' }}{{ 'DNS:' + pve_cluster_hostname + ',' if pve_cluster_hostname else '' }}IP:{{ ansible_facts.vmbr0.ipv4.address }}{{ ',IP:' + vrrp_ip if vrrp_ip else '' }}"
+    register: pveCSR
+    when: not pve_tls_key.stat.exists
+  
+  - name: Install a PVE (Proxmox) OpenSSL Certificate Signing Requst
+    ansible.builtin.copy:
+      src: /tmp/{{ serverHostname|lower }}-pve-ssl.csr
+      dest: /etc/ssl/csr/{{ serverHostname|lower }}-pve-ssl.csr
+      owner: root
+      group: root
+      mode: '0500'
+    when: not pve_tls_key.stat.exists
+  
+  - name: Remove Local Copies of PVE (Proxmox) OpenSSL Certificate
+    become: false
+    delegate_to: localhost
+    ansible.builtin.file:
+      path: /tmp/{{ serverHostname|lower }}-pve-ssl.csr
+      state: absent
+  
+  - name: Remove Local Copies of PVE (Proxmox) OpenSSL Certificate
+    become: false
+    delegate_to: localhost
+    ansible.builtin.file:
+      path: /tmp/{{ serverHostname|lower }}-pve-ssl.key
+      state: absent
+  
+  
+  #- name: "Sign PVE (Proxmox) OpenSSL Certificate"
+  #  ansible.builtin.command: 
+  #    cmd: "make {{ pveCSR.diff.after.public_key }}"
+  #  delegate_to: ca_server
+  #  register: pveCERT
+  - name: Check for Existing PVE OpenSSL Cert
+    ansible.builtin.stat:
+      path: /etc/ssl/{{ serverHostname|lower }}-pve-ssl.pem
+    register: pve_tls_pem
+
+  - name: Install PVE (Proxmox) TLS PEM
+    ansible.builtin.command:
+      cmd: "mv /etc/ssl/{{ serverHostname|lower }}-pve-ssl.pem /etc/pve/local/pve-ssl.pem"
+    when: pve_tls_pem.stat.exists
+    notify:
+      - restart pveproxy
+      - restart nginx
+
+  - name: Install PVE (Proxmox) TLS Key
+    ansible.builtin.command:
+      cmd: "cp /etc/ssl/private/{{ serverHostname|lower }}-pve-ssl.key /etc/pve/local/pve-ssl.key"
+    when: pve_tls_pem.stat.exists
+    notify:
+      - restart pveproxy
+      - restart nginx
+
+  tags:
+    - pve-tls

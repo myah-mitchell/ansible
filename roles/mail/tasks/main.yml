@@ -1,0 +1,7 @@
+---
+- name: Include Mail (postfix) Setup Tasks
+  ansible.builtin.include_tasks: postfix.yml
+  args:
+    apply:
+      become: true
+  when: MAIL|bool and mail_service == "postfix"

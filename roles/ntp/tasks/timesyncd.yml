@@ -1,0 +1,34 @@
+---
+### Package Management
+- name: Install Packages
+  ansible.builtin.apt:
+    name:
+      - ntpdate
+    state: present
+    update_cache: false
+  retries: 3
+  delay: 5
+
+- name: Remove other NTP Packages
+  ansible.builtin.apt:
+    name:
+      - chrony
+    state: absent
+    update_cache: false
+  retries: 3
+  delay: 5
+
+### Configure NTP and Time
+- name: Update NTP Config to use Gateway NTP
+  lineinfile:
+    dest: /etc/systemd/timesyncd.conf
+    regexp: ".*NTP=.*$"
+    #line: "NTP={{ ansible_default_ipv4.gateway }}"
+    line: "NTP=pool.ntp.org"
+    state: present
+  notify: update time
+
+- name: Set ntp_timezone to {{ ntp_timezone }}
+  community.general.timezone:
+    name: "{{ ntp_timezone }}"
+  notify: update time

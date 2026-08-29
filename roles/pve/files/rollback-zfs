@@ -1,0 +1,106 @@
+#!/bin/sh
+
+if [ $PPID -eq 1 ]; then
+  # This code snippet runs inside of the initramfs, right after the kernel
+  # has mounted the ZFS root file system.
+  # If there is a file telling us that a rollback was previously requested,
+  # attempt to do so now.
+  # N.B.: This code runs in a BusyBox environment. Don't expect to get all of
+  # the same powerful commands that a full Linux system has access to. Tread
+  # with care when writing shell scripts.
+  if [ -r "${rootmnt}/.rollback-zfs" ]; then
+    rollback() {
+      local label="$1"
+      # We only ever attempt to roll back the root filesystem, as it is the only
+      # one that is a little tricky to do. Snapshots for other mountpoints
+      # should be handled with the tools that Linux and/or PVE provide for this
+      # purpose.
+      local root="$(awk "/ ${rootmnt////\\/} zfs /"'{ print $1 }' /proc/mounts)"
+      # While ZFS has the option to roll back multiple generations of snapshots,
+      # we aim to be conservative and will only ever roll back the most recent
+      # snapshot. If you need to roll back to an earlier snapshot, you should
+      # explicitly destroy the ones that you no longer need.
+      local snapshots="$(zfs list -t snapshot "${root}" 2>/dev/null |
+                         awk "/^${root////\\/}/"'{ print $1 }')"
+      local last="$(echo "${snapshots}" | sed -n 's/[^@]*@//;$p')"
+      [ -n "${last}" -a "x${last}" = "x${label}" ] || return
+      # Remove the file telling us to perform a rollback operation. This should
+      # help avoid boot loops if the rollback is not successful.
+      rm -f "${rootmnt}/.rollback-zfs"
+      zfs rollback "${root}@${label}" || :
+    }
+    rollback "$(cat "${rootmnt}/.rollback-zfs")"
+    # Again, remove the file telling us to perform rollbacks. This prevents
+    # nasty surprises if this file made it into the snapshot.
+    rm -f "${rootmnt}/.rollback-zfs"
+  fi
+elif [ "x$*" = "xprereqs" ]; then
+  # Our script can get invoked for several different reasons; one of them
+  # would be when the initramfs gets assembled. Don't do anything in that
+  # case.
+  exit 0
+else
+  # This is our entry-point into this script, when a user invokes us to
+  # manage their snapshots. Perform the required sanity checking and print
+  # appropriate messages.
+  usage() {
+    echo "${0##*/}: [--cancel] <snapshot>" >&2
+  }
+
+  # Check for root permissions
+  [ "$(id -u)" = 0 ] || { echo "Must run as root user" >&2; exit 1; }
+  [ $# = 1 ] || { usage; exit 1; }
+
+  # If invoked with the "--cancel" option, delete the file that controls
+  # rollbacks.
+  if [ "x$1" = "x--cancel" ]; then
+    rm -f /.rollback-zfs
+    exit 0
+  fi
+
+  # Sanity check that the caller is asking us to remove the most recent
+  # snapshot. This information can of course still change several times
+  # before the system has actually rebooted, and we will double-check again
+  # before performing the actual rollback. But an early check at this
+  # place allows us to print helpful messages to the user.
+  root="$(awk "/ \/ zfs /"'{ print $1 }' /proc/mounts)"
+  [ -n "${root}" ] || {
+    echo "Cannot find a root ZFS filesystem" >&2
+    exit 1
+  }
+  r_="$(echo "${root}" | sed 's,/,\/,g')"
+  snapshots="$(zfs list -t snapshot "${root}" 2>/dev/null |
+               awk "/^${r}/"'{ print $1 }')"
+  echo "${snapshots}" | egrep @"$1"'([[:space:]]|$)' >/dev/null 2>&1 || {
+    echo "Root filesystem on ${root} does not have a snapshot called $1" >&2
+    exit 1
+  }
+  last="$(echo "${snapshots}" | sed -n 's/[^@]*@//;$p')"
+  [ "x$1" = "x${last}" ] || {
+    echo "Will only roll back to most recent snapshot. Delete any uneeded" >&2
+    echo "snapshots, if you want to roll back to an older one instead." >&2
+    exit 1
+  }
+
+  # Make sure our script is part of the initramfs for the current kernel.
+  if ! [ -r /usr/share/initramfs-tools/scripts/local-bottom/rollback-zfs ] ||
+      ! cmp "$0" /usr/share/initramfs-tools/scripts/local-bottom/rollback-zfs \
+            >/dev/null 2>&1; then
+    cp "$0" /usr/share/initramfs-tools/scripts/local-bottom/rollback-zfs
+    update-initramfs -u
+    # proxmox-boot-tool refresh
+    echo
+  fi
+
+  # Explain the next steps that the user needs to take.
+  echo "$1" >/.rollback-zfs
+  cat <<EOF
+The system will roll back to "$1" upon the next reboot.
+
+You must initiate this reboot yourself (e.g. by running "/usr/sbin/reboot").
+
+After the system has booted again, the snapshot will NOT be removed
+automatically. If you no longer need it, you must execute
+"zfs destroy ${root}@$1" yourself.
+EOF
+fi

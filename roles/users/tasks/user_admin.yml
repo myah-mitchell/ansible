@@ -1,0 +1,53 @@
+---
+- name: Create {{ admin_name }} user account
+  ansible.builtin.user:
+    name: "{{ admin_name|lower }}"
+    groups: sudo
+    append: true
+    home: '/home/{{ admin_name|lower }}'
+    shell: /bin/bash
+    create_home: true
+    state: present
+  register: admin_user_created
+
+- name: Set {{ admin_name }} user password
+  ansible.builtin.user:
+    name: "{{ admin_name|lower }}"
+    password: "{{ server_password | password_hash('sha512') }}"
+  when: server_password | length > 0
+
+- name: Ensure {{ admin_name }} has sudo privileges
+  lineinfile:
+    dest: /etc/sudoers
+    state: present
+    regexp: "^{{ admin_name|lower }}"
+    line: "{{ admin_name|lower }} ALL=(ALL:ALL) NOPASSWD: ALL"
+    validate: "/usr/sbin/visudo -cf %s"
+
+- name: Add admin pub key to {{ admin_name }} user
+  ansible.posix.authorized_key:
+    user: '{{ admin_name|lower }}'
+    key: "{{ admin_ssh_public_keys | join('\n') }}"
+    state: present
+    exclusive: true
+  when: admin_ssh_public_keys | length > 0
+
+- name: Add skel files to {{ admin_name }} user
+  ansible.builtin.copy:
+    src: /etc/skel/
+    dest: '/home/{{ admin_name|lower }}'
+    owner: "{{ admin_name|lower }}"
+    group: "{{ admin_name|lower }}"
+    mode: preserve
+    directory_mode: '0750'
+    remote_src: true
+  when: admin_user_created.changed
+
+- name: Ensure proper permissions on {{ admin_name }}
+  ansible.builtin.file:
+    path: '/home/{{ admin_name|lower }}'
+    state: directory
+    owner: "{{ admin_name|lower }}"
+    group: "{{ admin_name|lower }}"
+    mode: '0750'
+  when: admin_user_created.changed

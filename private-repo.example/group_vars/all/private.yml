@@ -1,0 +1,38 @@
+---
+#### private.yml — everything the public ansible repo would rather not
+#### publish, in one place. This is a starter skeleton: fill in your real
+#### values below, then have your bootstrap step copy this file (and
+#### hosts.yml) over the public repo's group_vars/all/private.yml and
+#### hosts.yml before running ansible-playbook. See README.md in this
+#### folder for the exact commands. This file is loaded automatically by
+#### Ansible for every host (it lives in group_vars/all/).
+
+# SSH public keys to install. Empty here — no keys are installed. See
+# roles/users/tasks/*.yml and roles/users/defaults/main.yml.
+admin_ssh_public_keys: []
+ansible_ssh_public_keys: []
+# client_ssh_public_keys defaults to admin_ssh_public_keys — only set this if
+# the end-user login (client_account) should have a different key than admin:
+# client_ssh_public_keys: []
+
+# CA certs to trust on every host, as a list of {name, content}. Empty here
+# — no CAs are installed. See roles/certificates/tasks/certificates.yml.
+ca_certificates: []
+
+# SSH login banner (/etc/legal). See roles/ssh/defaults/main.yml and
+# roles/ssh/tasks/ssh.yml for how these two are rendered together.
+# ssh_legal_banner_name: "{{ short_name }}"
+# ssh_legal_banner_body: |
+#   Unauthorized access to this system is prohibited.
+#   All activity may be monitored and reported.
+
+# The human admin login (not the ansible service account). See
+# roles/users/defaults/main.yml.
+client_account: "clientuser"
+
+# Read-only PAT scoped to just this private repo. Baked into the cloud-init
+# template (see roles/pve/templates/cloudinit-vendor.yml.j2) so freshly
+# provisioned VMs can pull this same private overlay on first boot. Empty
+# here — a fresh VM then just runs against the public repo's sanitized
+# example data instead. See roles/pve/defaults/main.yml.
+ansible_private_repo_token: ""

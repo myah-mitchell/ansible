@@ -1,0 +1,15 @@
+---
+# Shared signing key for the Proxmox apt repos (PVE, PBS, Ceph). Fetched
+# once here and referenced by Signed-By in each repo's deb822 sources file
+# below, instead of relying on a key already being trusted on the host.
+- name: Create apt Keyrings Directory
+  ansible.builtin.file:
+    path: /usr/share/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Fetch Proxmox Repo Signing Key
+  ansible.builtin.get_url:
+    url: "https://enterprise.proxmox.com/debian/proxmox-release-{{ ansible_facts.distribution_release }}.gpg"
+    dest: /usr/share/keyrings/proxmox-archive-keyring.gpg
+    mode: '0644'

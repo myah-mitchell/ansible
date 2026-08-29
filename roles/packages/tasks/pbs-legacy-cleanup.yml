@@ -1,0 +1,10 @@
+---
+# One-time cleanup for hosts already provisioned by the old apt_repository-
+# based tasks these replaced. Both PBS repo variants shared the
+# "pbs-enterprise" sources.list.d filename, so either enterprise or
+# no-subscription state could have left the file behind - remove it outright
+# before adding the new deb822 entry below.
+- name: Remove Legacy PBS apt Entry
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/pbs-enterprise.list
+    state: absent

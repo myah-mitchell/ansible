@@ -1,0 +1,161 @@
+---
+# This page was heavily based on the ansible GitHub project located at: https://github.com/lae/ansible-role-proxmox/
+- block:
+  - name: Force all notified handlers to run at this point, not waiting for normal sync points
+    ansible.builtin.meta: flush_handlers
+  
+  - name: Pause for 5 seconds to ensure network is back online
+    ansible.builtin.pause:
+      seconds: 5
+  
+  - name: Lookup cluster information
+    proxmox_query:
+      query: cluster/status
+    register: _pve_cluster
+  
+  - name: Identify if the host is already part of a cluster
+    set_fact:
+      _pve_active_cluster: '{{ _pve_cluster | json_query(query) }}'
+    when: "_pve_cluster | json_query(query) | ternary(true, false)"
+    vars:
+      query: "response[?type=='cluster'].name | [0]"
+  
+#  - name: Identify all clusters that the hosts in the specified group may be in
+#    set_fact:
+#      _pve_found_clusters: "{{ _pve_found_clusters | default([]) | intersect([hostvars[item]['_pve_active_cluster']]) }}"
+#    with_items: "{{ groups[pve_group] }}"
+#    when: "'_pve_active_cluster' in hostvars[item]"
+#  
+#  - name: Ensure that hosts found are not in multiple existing clusters
+#    assert:
+#      that:
+#        - "(_pve_found_clusters | default([]) | length) <= 1"
+#      msg: "Some or all of the hosts in {{ pve_group }} appear to already be part of two or more different clusters, \
+#            please ensure groups only have hosts meant to be in one single cluster."
+#  
+#  - name: Ensure that, if we find an existing cluster, that it matches the specified cluster name
+#    assert:
+#      that:
+#        - "_pve_found_clusters[0] == pve_cluster_clustername"
+#      msg: "Some or all of the hosts in group '{{ pve_group }}' appear to be in a cluster named \
+#            '{{ _pve_found_clusters[0] }}', which differs from the specified clustername of \
+#            '{{ pve_cluster_clustername }}'. Please ensure the clustername is correct. An existing \
+#            cluster's name cannot be modified."
+#    when: "(_pve_found_clusters | default([]) | length) == 1"
+  
+  - name: Default initialization node is the first node of pve_group
+    ansible.builtin.set_fact:
+      _init_node: "{{ groups[pve_group][0] }}"
+  
+#  - name: Find any active node in an already initialized Proxmox cluster
+#    ansible.builtin.set_fact:
+#      _init_node: "{{ item }}"
+#    with_items: "{{ groups[pve_group] }}"
+#    when:
+#      - "'_pve_active_cluster' in hostvars[item]"
+#      - "hostvars[item]['_pve_active_cluster'] == pve_cluster_clustername"
+
+  - name: Create Cluster {{ pve_cluster_clustername }}
+    ansible.builtin.command: >-
+      pvecm create {{  pve_cluster_clustername }} 
+      {% if pve_interfaces['coro0']['ip'] is defined %}
+      -link0 {{ pve_interfaces['coro0']['ip'] }}
+      {% endif %}
+      {% if pve_interfaces['coro1']['ip'] is defined %}
+      -link1 {{ pve_interfaces['coro1']['ip'] }}
+      {% endif %}
+    args:
+      creates: "{{ pve_cluster_conf }}"
+    when: 
+      - "_pve_found_clusters is not defined"
+      - "inventory_hostname == _init_node"
+ 
+  - name: Wait for quorum on initialization node
+    proxmox_query:
+      query: cluster/status
+    register: _pve_cluster_init
+    until: "(_pve_cluster_init | json_query(query)) == 1"
+    retries: 5
+    delay: 5
+    when:
+      - "inventory_hostname == _init_node"
+    vars:
+      query: "response[?type=='cluster'].quorate | [0]"
+
+  - block: 
+    - name: Scan for SSH host keys.
+      become: false
+      delegate_to: localhost
+      ansible.builtin.shell:
+        cmd: ssh-keyscan -t rsa {{ hostvars[_init_node]['pve_interfaces']['mgmt']['ip'] }} 2>/dev/null
+      changed_when: False
+      register: ssh_scan
+    
+    - name: Temporarily mark that cluster host as known in root user's known_hosts
+      ansible.builtin.blockinfile:
+        dest: /root/.ssh/known_hosts
+        create: yes
+        mode: 0600
+        marker: "# {mark}: cluster host key for joining"
+        content: "{{ ssh_scan.stdout }}"
+    
+    - name: Add node to PVE (Proxmox) cluster
+      ansible.builtin.command: >-
+        pvecm add {{ hostvars[_init_node]['pve_interfaces']['mgmt']['ip'] }} -use_ssh 
+        {% if pve_interfaces['coro0']['ip'] is defined %}
+        -link0 {{ pve_interfaces['coro0']['ip'] }}
+        {% endif %}
+        {% if pve_interfaces['coro1']['ip'] is defined %}
+        -link1 {{ pve_interfaces['coro1']['ip'] }}
+        {% endif %}
+      # Ensure that nodes join one-by-one because cluster joins create a lock
+      throttle: 1
+      args:
+        creates: "/etc/pve/corosync.conf"
+    
+    - name: Remove the cluster host's public key from root user's known_hosts
+      ansible.builtin.blockinfile:
+        dest: /root/.ssh/known_hosts
+        state: absent
+        mode: 0600
+        marker: "# {mark}: cluster host key for joining"
+    when:
+      - "_pve_active_cluster is not defined"
+      - "inventory_hostname != _init_node"
+
+  - name: Check for PVE cluster HA groups
+    proxmox_query:
+      query: "/cluster/ha/groups"
+    register: _ha_group_list
+    when: "inventory_hostname == _init_node"
+
+  - name: Create PVE cluster HA groups
+    command: >-
+      ha-manager groupadd {{ item.name }}
+      -comment "{{ item.comment | default('') }}"
+      -nodes "{{ item.nodes }}"
+      {% if 'nofailback' in item %}
+      -nofailback {{ item.nofailback }}
+      {% endif %}
+      {% if 'restricted' in item %}
+      -restricted {{ item.restricted }}
+      {% endif %}
+    when:
+      - "inventory_hostname == _init_node"
+      - item.name not in _ha_group_list.response | json_query("[*].group")
+    with_items: "{{ pve_cluster_ha_groups }}"
+  
+  - name: Update PVE cluster HA groups
+    command: >-
+      ha-manager groupset {{ item.0.name }} -{{ item.1 }} "{{ item.0[item.1] }}"
+    when:
+      - "inventory_hostname == _init_node"
+      - item.0.name in _ha_group_list.response | json_query("[*].group")
+      - item.1 in item.0
+      - item.0[item.1] != _ha_group_list.response
+                          | json_query("[?group=='" + item.0.name + "']." + item.1) | first
+    loop: "{{ pve_cluster_ha_groups
+              | product(['comment', 'nodes', 'nofailback', 'restricted']) | list }}"
+
+  tags:
+    - pve-cluster

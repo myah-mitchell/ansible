@@ -1,0 +1,18 @@
+---
+- name: Include PMG (Proxmox Mail Gateway) General Setup Tasks
+  ansible.builtin.include_tasks: pmg.yml
+  args:
+    apply:
+      become: true
+  when: PMG
+  tags: 
+    - pmg-general
+
+- name: Include PMG (Proxmox Mail Gateway) Signed TLS Tasks
+  ansible.builtin.include_tasks: pmg-tls.yml
+  args:
+    apply:
+      become: true
+  when: PMG
+  tags: 
+    - pmg-tls

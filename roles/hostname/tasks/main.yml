@@ -1,0 +1,7 @@
+---
+- name: Include Hostname Setup Tasks
+  ansible.builtin.include_tasks: hostname.yml
+  args:
+    apply:
+      become: true
+  when: HOSTNAME|bool

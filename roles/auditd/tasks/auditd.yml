@@ -1,0 +1,77 @@
+---
+- name: Install Auditd Packages
+  ansible.builtin.apt:
+    name:
+      - auditd
+    state: present
+    update_cache: false
+  retries: 3
+  delay: 5
+  notify: enable auditd
+
+- ansible.builtin.stat: 
+    path: /etc/audit/rules.d/audit.rules-default
+  register: statResult
+
+- name: Backup Auditd Defaults
+  ansible.builtin.copy:
+    src: /etc/audit/rules.d/audit.rules
+    dest: /etc/audit/rules.d/audit.rules-default
+    owner: root
+    group: root
+    mode: 0644
+    remote_src: true
+  when: statResult.stat.exists == false
+
+- ansible.builtin.stat: 
+    path: /etc/audit/rules.d/audit.rules
+  register: statResult
+
+- name: Remove Auditd Defaults
+  ansible.builtin.file:
+    name: /etc/audit/rules.d/audit.rules
+    state: absent
+  when: statResult.stat.exists == true
+
+- name: Create Rule Files
+  ansible.builtin.copy:
+    src: files/rules/
+    dest: /etc/audit/rules.d/
+    owner: root
+    group: root
+    mode: '0644'
+    directory_mode: '0755'
+  notify: restart auditd
+
+
+- name: Update PAM Config for TTY Audit (sudo)
+  lineinfile:
+    dest: /etc/pam.d/sudo
+    regexp: ".*pam_tty_audit.so .*$"
+    line: "session    required   pam_tty_audit.so disable=* enable=root,{{ adminUser }}"
+    state: present
+  notify: restart auditd
+
+- name: Update PAM Config for TTY Audit (sudo-i)
+  lineinfile:
+    dest: /etc/pam.d/sudo-i
+    regexp: ".*pam_tty_audit.so .*$"
+    line: "session    required   pam_tty_audit.so disable=* enable=root,{{ adminUser }}"
+    state: present
+  notify: restart auditd
+
+- name: Update PAM Config for TTY Audit (su)
+  lineinfile:
+    dest: /etc/pam.d/su
+    regexp: ".*pam_tty_audit.so .*$"
+    line: "session    required   pam_tty_audit.so disable=* enable=root,{{ adminUser }}"
+    state: present
+  notify: restart auditd
+
+- name: Update PAM Config for TTY Audit (su-l)
+  lineinfile:
+    dest: /etc/pam.d/su-l
+    regexp: ".*pam_tty_audit.so .*$"
+    line: "session    required   pam_tty_audit.so disable=* enable=root,{{ adminUser }}"
+    state: present
+  notify: restart auditd

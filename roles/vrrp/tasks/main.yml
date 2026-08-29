@@ -1,0 +1,7 @@
+---
+- name: Include keepalived Setup Tasks
+  ansible.builtin.include_tasks: keepalived.yml
+  args:
+    apply:
+      become: true
+  when: VRRP and vrrp_service == "keepalived"

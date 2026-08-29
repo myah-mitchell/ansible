@@ -1,0 +1,15 @@
+---
+- name: pmgproxy_restart
+  service:
+    name: pmgproxy
+    state: restarted
+
+- name: networking_restart
+  service:
+    name: networking
+    state: restarted
+
+- name: nginx_reload
+  service:
+    name: nginx
+    state: reloaded

@@ -1,0 +1,23 @@
+---
+- name: Install Fail2Ban Packages
+  ansible.builtin.apt:
+    name:
+      - fail2ban
+      #- sendmail
+    state: present
+    update_cache: false
+  retries: 3
+  delay: 5
+
+- ansible.builtin.stat: 
+    path: /etc/fail2ban/fail2ban.local
+  register: statResult
+
+- name: Copy Fail2Ban Defaults
+  ansible.builtin.copy:
+    src: files/fail2ban.local
+    dest: /etc/fail2ban/fail2ban.local
+    owner: root
+    group: root
+    mode: 0644
+  when: statResult.stat.exists == false

@@ -1,0 +1,3 @@
+---
+#### HOSTNAME role sets the hostname of the system and updates the host file
+HOSTNAME: true

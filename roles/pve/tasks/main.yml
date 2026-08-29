@@ -1,0 +1,75 @@
+---
+- name: Include PVE (Proxmox) Variables
+  ansible.builtin.include_tasks: pve-vars.yml
+  args:
+    apply:
+      become: true
+  when: PVE
+  tags:
+    - pve-general
+    - pve-passthrough
+    - pve-network
+    - pve-cluster
+    - pve-aadds
+    - pve-tls
+    - pve-quorum
+    - pve-ceph
+    - pve-cloudinit
+
+- name: Include PVE (Proxmox) General Setup Tasks
+  ansible.builtin.include_tasks: pve.yml
+  args:
+    apply:
+      become: true
+  when: PVE
+  tags:
+    - pve-general
+
+- name: Include PVE (Proxmox) PCIe Passthrough Tasks
+  ansible.builtin.include_tasks: pve-passthrough.yml
+  args:
+    apply:
+      become: true
+  when: PVE
+  tags:
+    - pve-passthrough
+- name: Include PVE (Proxmox) Network Setup Tasks
+  ansible.builtin.include_tasks: pve-network.yml
+  args:
+    apply:
+      become: true
+  when: PVE
+  tags:
+    - pve-network
+
+- name: Include PVE (Proxmox) Cluster Setup Tasks
+  ansible.builtin.include_tasks: pve-cluster.yml
+  args:
+    apply:
+      become: true
+  when:
+    - PVE
+    - groups[pve_group] | length  > 1
+  tags:
+    - pve-cluster
+
+- name: Include PVE (Proxmox) Signed TLS Tasks
+  ansible.builtin.include_tasks: pve-tls.yml
+  args:
+    apply:
+      become: true
+  when: PVE
+  tags:
+    - pve-tls
+
+- name: Include Ceph Setup Tasks
+  ansible.builtin.include_tasks: pve-ceph.yml
+  when: PVE and pve_ceph_enabled
+  tags:
+    - pve-ceph
+
+- name: Include Cloud-Init Tasks
+  ansible.builtin.include_tasks: pve-cloudinit.yml
+  when: PVE
+  tags:
+    - pve-cloudinit

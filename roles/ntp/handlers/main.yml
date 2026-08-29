@@ -1,0 +1,16 @@
+---
+- name: update time
+  ansible.builtin.command:
+    cmd: ntpdate -s {{ ansible_facts.default_ipv4.gateway }}
+
+- name: reload chrony
+  ansible.builtin.command:
+    cmd: chronyc reload sources
+
+- name: restart chrony
+  ansible.builtin.command:
+    cmd: systemctl restart chrony.service
+
+- name: restart chronyd
+  ansible.builtin.command:
+    cmd: systemctl restart chronyd.service

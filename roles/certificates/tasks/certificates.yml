@@ -1,0 +1,22 @@
+---
+- name: Install CA Cert Package
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+    state: present
+    update_cache: false
+  retries: 3
+  delay: 5
+
+- name: Copy Root CA to OS
+  ansible.builtin.copy:
+    content: '{{ item.content }}'
+    dest: '/usr/local/share/ca-certificates/{{ item.name }}.crt'
+    owner: root
+    group: root
+    mode: 0644
+  loop: "{{ ca_certificates }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify:
+    - update trusted ca

@@ -1,0 +1,14 @@
+---
+#### DOTFILES role syncs and installs the dotfiles repo for interactive shell use.
+#### Targets client_account (the human admin login), not
+#### ansible_account — dotfiles are for interactive shells, the ansible service
+#### account has no interactive login.
+DOTFILES: true
+
+# {{ github_user }}/dotfiles is public — plain HTTPS, no deploy key/credential needed.
+dotfiles_repo_url: "https://github.com/{{ github_user }}/dotfiles.git"
+dotfiles_repo_version: "main"
+# Checked out once per play on the control node (Semaphore).
+dotfiles_local_checkout: "/tmp/ansible-dotfiles-checkout"
+dotfiles_target_user: "{{ client_account|lower }}"
+dotfiles_remote_path: "/home/{{ dotfiles_target_user }}/GitHub/dotfiles"

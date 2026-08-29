@@ -1,0 +1,53 @@
+---
+- name: Create {{ client_account }} user account
+  ansible.builtin.user:
+    name: "{{ client_account|lower }}"
+    groups: sudo
+    append: true
+    home: '/home/{{ client_account|lower }}'
+    shell: /bin/bash
+    create_home: true
+    state: present
+  register: client_user_created
+
+- name: Set {{ client_account }} user password
+  ansible.builtin.user:
+    name: "{{ client_account|lower }}"
+    password: "{{ server_password | password_hash('sha512') }}"
+  when: server_password | length > 0
+
+- name: Ensure {{ client_account }} has sudo privileges
+  lineinfile:
+    dest: /etc/sudoers
+    state: present
+    regexp: "^{{ client_account|lower }}"
+    line: "{{ client_account|lower }} ALL=(ALL:ALL) NOPASSWD: ALL"
+    validate: "/usr/sbin/visudo -cf %s"
+
+- name: Add pub key(s) to {{ client_account }} user
+  ansible.posix.authorized_key:
+    user: '{{ client_account|lower }}'
+    key: '{{ item }}'
+    state: present
+    exclusive: false
+  loop: "{{ client_ssh_public_keys }}"
+
+- name: Add skel files to {{ client_account }} user
+  ansible.builtin.copy:
+    src: /etc/skel/
+    dest: '/home/{{ client_account|lower }}'
+    owner: "{{ client_account|lower }}"
+    group: "{{ client_account|lower }}"
+    mode: preserve
+    directory_mode: '0750'
+    remote_src: true
+  when: client_user_created.changed
+
+- name: Ensure proper permissions on {{ client_account }}
+  ansible.builtin.file:
+    path: '/home/{{ client_account|lower }}'
+    state: directory
+    owner: "{{ client_account|lower }}"
+    group: "{{ client_account|lower }}"
+    mode: '0750'
+  when: client_user_created.changed

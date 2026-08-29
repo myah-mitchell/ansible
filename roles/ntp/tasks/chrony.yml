@@ -1,0 +1,68 @@
+---
+### Package Management
+- name: Install NTP Packages
+  ansible.builtin.apt:
+    name:
+      - chrony
+    state: present
+    update_cache: false
+  retries: 3
+  delay: 5
+
+- name: Remove other NTP Packages
+  ansible.builtin.apt:
+    name:
+      - ntpdate
+    state: absent
+    update_cache: false
+  retries: 3
+  delay: 5
+
+### Configure NTP and Time
+- name: Set ntp_timezone to {{ ntp_timezone }}
+  community.general.timezone:
+    name: "{{ ntp_timezone }}"
+  notify: reload chrony
+
+- name: Copy Chrony Defaults
+  vars:
+    local_file: "files/chrony-{{ short_name|lower }}-{{ location_abbr|lower }}.sources"
+    default_file: "files/chrony.sources"
+    file_to_copy: "{{ local_file if lookup( 'file', local_file, errors='ignore') else default_file }}"
+  ansible.builtin.copy:
+    src: "{{ file_to_copy }}"
+    dest: /etc/chrony/sources.d/local-ntp.sources
+    owner: root
+    group: root
+    mode: 0644
+  notify: 
+    - reload chrony
+    - restart chrony
+    - restart chronyd
+
+- name: Check Chrony local-ntp.sources file for config
+  lineinfile:
+    dest: /etc/chrony/sources.d/local-ntp.sources
+    line: "# This file is intentionally left blank"
+  check_mode: yes
+  register: presence
+  changed_when: presence.failed
+
+- name: Update Chrony config to use Gateway IP in chrony.conf instead of local-ntp.sources
+  ansible.builtin.lineinfile:
+    dest: /etc/chrony/chrony.conf
+    regexp: ".*pool.*$"
+    #line: "pool {{ ansible_default_ipv4.gateway }} iburst"
+    line: "pool pool.ntp.org iburst"
+    state: present
+  notify: reload chrony
+  when: presence.msg | length == 0
+
+- name: Update Chrony config to only use local-ntp.sources
+  ansible.builtin.lineinfile:
+    dest: /etc/chrony/chrony.conf
+    regexp: ".*pool.*$"
+    line: "#pool {{ ansible_facts.default_ipv4.gateway }} iburst"
+    state: present
+  notify: reload chrony
+  when: presence.msg | length > 0

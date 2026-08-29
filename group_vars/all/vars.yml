@@ -1,0 +1,10 @@
+---
+#### vars.yml — shared, non-sensitive defaults. Unlike private.yml, this file
+#### is meant to be edited directly in a fork, not overridden by a private
+#### overlay repo.
+
+# GitHub user/org this repo (and its sibling repos it clones — dotfiles,
+# ansible-private) lives under. If you fork this repo, change this one
+# value to your own GitHub username/org — roles/dotfiles and roles/pve build
+# their clone URLs from it, so you don't have to hunt through role defaults.
+github_user: "myah-mitchell"

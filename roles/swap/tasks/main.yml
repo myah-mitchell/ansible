@@ -1,0 +1,7 @@
+---
+- name: Include Swap Setup Tasks
+  ansible.builtin.include_tasks: swap.yml
+  args:
+    apply:
+      become: true
+  when: SWAP|bool

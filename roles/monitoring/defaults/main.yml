@@ -1,0 +1,15 @@
+---
+#### MONITORING role installs and configures monitoring agents
+NODE_EXPORTER: false
+
+node_exporter_version: "1.10.2"
+node_exporter_arch: "amd64"
+
+# Password for node-exporter basic auth. Override in group_vars vault.
+# Ansible hashes it with bcrypt on first run and skips the config on subsequent runs.
+node_exporter_password: "CHANGEME"
+
+node_exporter_tls_country: "US"
+node_exporter_tls_state: "MyState"
+node_exporter_tls_city: "MyCity"
+node_exporter_tls_org: "MyOrg"

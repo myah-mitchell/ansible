@@ -1,0 +1,31 @@
+---
+- block: 
+  - name: Host File for Proxmox
+    ansible.builtin.template:
+      src: templates/hosts.j2 
+      dest: /etc/hosts
+      owner: root
+      group: root
+      mode: '0644'
+  
+  - name: Create Network Interfaces file
+    ansible.builtin.template:
+      src: templates/interfaces.j2
+      dest: /etc/network/interfaces
+      owner: root
+      group: root
+      mode: '0644'
+      trim_blocks: true
+      lstrip_blocks: true
+    notify:
+      - networking_restart
+  
+  - name: Install Proxmox Rollback ZFS Script
+    ansible.builtin.copy:
+      src: files/rollback-zfs
+      dest: /usr/local/bin/rollback-zfs
+      owner: root
+      group: root
+      mode: '0500'
+  tags:
+    - pmg-general

@@ -1,0 +1,108 @@
+# To have colors for ls and all grep commands such as grep, egrep and zgrep
+if [ -x /usr/bin/dircolors ]; then
+  test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
+  alias ls='ls --color=auto'
+  alias l='ls --color=auto -alF'
+  alias dir='dir --color=auto'
+  alias vdir='vdir --color=auto'
+  alias grep='grep --color=auto'
+  alias fgrep='fgrep --color=auto'
+  alias egrep='egrep --color=auto'
+  alias diff="diff --color -u"
+else
+  alias l='ls -alF'
+fi
+
+# Change directory aliases
+alias home='cd ~'
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+alias .....='cd ../../../..'
+cl() { cd $1; ls -alF; }
+
+# Default to Interactive aliases
+alias cp='cp -i'
+alias mv='mv -i'
+#alias rm='rm -iv'
+
+# Alias's to modified commands
+alias mkdir='mkdir -p'
+alias ps='ps auxf'
+alias less='less -R'
+alias multitail='multitail --no-repeat -c'
+alias vi='vim'
+alias df='df -m'
+
+# Other Alias
+alias ports='lsof -i -P -n'
+alias routes='ip route list'
+alias wanip='dig TXT +short o-o.myaddr.l.google.com @ns1.google.com'
+alias dc='docker compose'
+
+# Send an Alert
+alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
+
+# Easy Diff
+vdiff () {
+    if [ "${#}" -ne 2 ] ; then
+        echo "vdiff requires two arguments"
+        echo "  comparing dirs:  vdiff dir_a dir_b"
+        echo "  comparing files: vdiff file_a file_b"
+        return 1
+    fi
+
+    local left="${1}"
+    local right="${2}"
+
+    if [ -d "${left}" ] && [ -d "${right}" ]; then
+        vim +"DirDiff ${left} ${right}"
+    else
+        vim -d "${left}" "${right}"
+    fi
+}
+
+# Weather Output
+weather () {
+    curl https://wttr.in/"${1}"
+}
+
+# Extract Files
+extract() {
+    if [ -z ${1} ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+        echo "Usage: extract <archive> [directory]"
+        echo "Example: extract presentation.zip."
+        echo "Valid archive types are:"
+        echo "tar.bz2, tar.gz, tar.xz, tar, bz2, gz, tbz2,"
+        echo "tbz, tgz, lzo, rar, zip, 7z, xz, txz, lzma and tlz"
+    else
+        case "$1" in
+            *.tar.bz2|*.tbz2|*.tbz)         tar xvjf "$1" ;;
+            *.tgz)                          tar zxvf "$1" ;;
+            *.tar.gz)                       tar xvzf "$1" ;;
+            *.tar.xz)                       tar xvJf "$1" ;;
+            *.tar)                          tar xvf "$1" ;;
+            *.rar)                          7z x "$1" ;;
+            *.zip)                          unzip "$1" ;;
+            *.7z)                           7z x "$1" ;;
+            *.lzo)                          lzop -d  "$1" ;;
+            *.gz)                           gunzip "$1" ;;
+            *.bz2)                          bunzip2 "$1" ;;
+            *.Z)                            uncompress "$1" ;;
+            *.xz|*.txz|*.lzma|*.tlz)        xz -d "$1" ;;
+            *) echo "Sorry, '$1' could not be decompressed." ;;
+        esac
+    fi
+}
+
+# This is specific to WSL 2. If the WSL 2 VM goes rogue and decides not to free
+# up memory, this command will free your memory after about 20-30 seconds.
+#   Details: https://github.com/microsoft/WSL/issues/4166#issuecomment-628493643
+alias drop_cache="sudo sh -c \"echo 3 >'/proc/sys/vm/drop_caches' && swapoff -a && swapon -a && printf '\n%s\n' 'Ram-cache and Swap Cleared'\""
+
+# Drupal Alias
+alias web='docker compose exec web'
+alias drush='docker compose exec web drush'
+alias composer='docker compose exec web composer'
+alias db='docker compose exec db'
+alias mariadb='docker compose exec db mariadb'

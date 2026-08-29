@@ -1,0 +1,21 @@
+---
+
+- name: Install keepalived Packages
+  ansible.builtin.apt:
+    name:
+      - keepalived
+    state: present
+    update_cache: false
+  retries: 3
+  delay: 5
+
+- name: Configure keepalived Service
+  ansible.builtin.template:
+    src: templates/keepalived.j2  
+    dest: /etc/keepalived/keepalived.conf
+    owner: root
+    group: www-data
+    mode: '0640'
+    trim_blocks: true
+    lstrip_blocks: true
+  notify: keepalived_restart

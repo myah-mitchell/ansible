@@ -1,0 +1,14 @@
+---
+- name: Include Logging (rsyslog) Setup Tasks
+  ansible.builtin.include_tasks: rsyslog.yml
+  args:
+    apply:
+      become: true
+  when: LOGGING|bool and logging_service == "rsyslog"
+
+- name: Include Journald Setup Tasks
+  ansible.builtin.include_tasks: journald.yml
+  args:
+    apply:
+      become: true
+  when: LOGGING|bool

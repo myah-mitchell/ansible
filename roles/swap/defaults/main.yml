@@ -1,0 +1,6 @@
+---
+#### SWAP role creates and enables a small swap file.
+SWAP: false
+swap_size: ""
+swap_file: ""
+

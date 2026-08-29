@@ -1,0 +1,36 @@
+---
+- name: proxmox-boot-tool
+  ansible.builtin.command:
+    cmd: proxmox-boot-tool refresh
+
+- name: update-grub
+  ansible.builtin.command:
+    cmd: update-grub
+
+- name: update-initramfs
+  ansible.builtin.command:
+    cmd: update-initramfs -u -k all
+
+- name: pvedaemon_restart
+  ansible.builtin.command:
+    cmd: pvedaemon restart
+
+- name: networking_restart
+  service:
+    name: networking
+    state: restarted
+  throttle: 1
+
+- name: ifreload
+  ansible.builtin.command:
+    cmd: ifreload -a
+
+- name: frr_restart
+  service:
+    name: frr
+    state: restarted
+  throttle: 1
+
+- name: template_build
+  ansible.builtin.command:
+    cmd: /usr/local/bin/create-cloud-init-template.sh

@@ -1,0 +1,14 @@
+---
+- name: Include QEMU Setup Tasks
+  ansible.builtin.include_tasks: qemu.yml
+  args:
+    apply:
+      become: true
+  when: QEMU
+
+- name: Include QEMU Serial Interface Tasks
+  ansible.builtin.include_tasks: serial.yml
+  args:
+    apply:
+      become: true
+  when: QEMU and not PVE and not PBS and not PMG

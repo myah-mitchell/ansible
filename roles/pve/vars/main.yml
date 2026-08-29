@@ -1,0 +1,5 @@
+---
+# vars file for pve role
+ADRead_User: "{{ AADDS_ADRead.note }}"
+ADRead_Pass: "{{ AADDS_ADRead.value }}"
+BWS_Secret: "{{ BWS_Read.value }}"

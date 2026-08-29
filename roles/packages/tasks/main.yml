@@ -1,0 +1,47 @@
+---
+- name: Setup Enterprise PVE (Proxmox) Repos
+  ansible.builtin.include_tasks: pve-subscription.yml
+  args:
+    apply:
+      become: true
+  when: PVE and pve_enterprise_repo
+  tags:
+    - pve
+    - pve-repos
+
+- name: Setup No Subscription PVE (Proxmox) Repos
+  ansible.builtin.include_tasks: pve-no-subscription.yml
+  args:
+    apply:
+      become: true
+  when: PVE and not pve_enterprise_repo
+  tags:
+    - pve
+    - pve-repos
+
+- name: Setup Enterprise PBS (Proxmox Backup Server) Repos
+  ansible.builtin.include_tasks: pbs-subscription.yml
+  args:
+    apply:
+      become: true
+  when: PBS and pbs_enterprise_repo
+  tags:
+    - pbs
+    - pbs-repos
+
+- name: Setup No Subscription PBS (Proxmox Backup Server) Repos
+  ansible.builtin.include_tasks: pbs-no-subscription.yml
+  args:
+    apply:
+      become: true
+  when: PBS and not pbs_enterprise_repo
+  tags:
+    - pbs
+    - pbs-repos
+
+- name: Include System Package Update and Install Tasks
+  ansible.builtin.include_tasks: packages.yml
+  args:
+    apply:
+      become: true
+  when: PACKAGES|bool

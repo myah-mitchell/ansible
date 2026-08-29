@@ -1,0 +1,7 @@
+---
+- name: Include Node Exporter Setup Tasks
+  ansible.builtin.include_tasks: node-exporter.yml
+  args:
+    apply:
+      become: true
+  when: NODE_EXPORTER|bool

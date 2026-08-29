@@ -1,0 +1,36 @@
+---
+- name: Create {{ ansible_account }} user account
+  ansible.builtin.user:
+    name: "{{ ansible_account }}"
+    password_lock: true
+    groups: users,sudo
+    shell: /bin/bash
+    state: present
+  when: 
+    - PVE == false
+    - PBS == false
+
+- name: Create {{ ansible_account }} user account on PVE/PBS
+  ansible.builtin.user:
+    name: "{{ ansible_account }}"
+    password_lock: true
+    groups: users,adm,sudo
+    shell: /bin/bash
+    state: present
+  when: PVE == true or PBS == true
+
+- name: Ensure {{ ansible_account }} has sudo privileges
+  lineinfile:
+    dest: /etc/sudoers
+    state: present
+    regexp: "^{{ ansible_account }}"
+    line: "{{ ansible_account }} ALL=(ALL:ALL) NOPASSWD: ALL"
+    validate: "/usr/sbin/visudo -cf %s"
+
+- name: Add ansible pub key to {{ ansible_account }} user
+  ansible.posix.authorized_key:
+    user: '{{ ansible_account }}'
+    key: "{{ ansible_ssh_public_keys | join('\n') }}"
+    state: present
+    exclusive: true
+  when: ansible_ssh_public_keys | length > 0

@@ -1,0 +1,204 @@
+---
+- block:
+  - name: Enable Legal Banner
+    ansible.builtin.lineinfile:
+      dest: /etc/ssh/sshd_config
+      regexp: "Banner"
+      line: "Banner /etc/legal"
+      state: present
+    notify: restart ssh
+  
+  - name: Render Legal Banner Name as ASCII Art
+    ansible.builtin.command:
+      cmd: figlet -f big -w 100 "{{ ssh_legal_banner_name }}"
+    delegate_to: localhost
+    become: false
+    run_once: true
+    changed_when: false
+    check_mode: false
+    register: _legal_ascii_art
+
+  - name: Install Legal Banner
+    ansible.builtin.copy:
+      content: "{{ _legal_ascii_art.stdout | frame_text(ssh_legal_banner_body) }}\n"
+      dest: /etc/legal
+      owner: root
+      group: root
+      mode: 0644
+  
+  #- name: Not using X11, so lets disable it
+  #  ansible.builtin.lineinfile:
+  #    dest: /etc/ssh/sshd_config
+  #    regexp: "X11Forwarding"
+  #    line: "X11Forwarding no"
+  #    state: present
+  #  notify: restart ssh
+  
+  # - name: Logging set to INFO
+  #  ansible.builtin.lineinfile:
+  #    dest: /etc/ssh/sshd_config
+  #    regexp: "LogLevel"
+  #    line: "LogLevel INFO"
+  #    state: present
+  #  notify: restart ssh
+  
+  - name: SyslogFacility set to AUTH
+    ansible.builtin.lineinfile:
+      dest: /etc/ssh/sshd_config
+      regexp: "SyslogFacility"
+      line: "SyslogFacility AUTH"
+      state: present
+    notify: restart ssh
+
+  - name: Allow SSH Agent Forwarding
+    ansible.builtin.lineinfile:
+      dest: /etc/ssh/ssh_config
+      regexp: "ForwardAgent"
+      line: "ForwardAgent yes"
+      state: present
+    notify: restart ssh
+
+  - name: Allow SSHd Agent Forwarding
+    ansible.builtin.lineinfile:
+      dest: /etc/ssh/sshd_config
+      regexp: "AllowAgentForwarding"
+      line: "AllowAgentForwarding yes"
+      state: present
+    notify: restart ssh
+  
+  - name: Block Empty Passwords
+    ansible.builtin.lineinfile:
+      dest: /etc/ssh/sshd_config
+      regexp: "PermitEmptyPasswords"
+      line: "PermitEmptyPasswords no"
+      state: present
+    notify: restart ssh
+    tags:
+      - ssh-lockdown
+  
+  - name: Block Root Password Login
+    ansible.builtin.lineinfile:
+      dest: /etc/ssh/sshd_config
+      regexp: "PermitRootLogin"
+      line: "PermitRootLogin without-password"
+      state: present
+    when: PVE == true
+    notify: restart ssh
+    tags:
+      - ssh-lockdown
+      
+  ### SSH Hardning ###
+  - name: Disable Root Login [SSH-7412]
+    ansible.builtin.lineinfile: 
+      dest: /etc/ssh/sshd_config
+      regexp: "PermitRootLogin"
+      line: "PermitRootLogin no"
+      state: present
+    when: PVE == false
+    notify: restart ssh
+    tags:
+      - ssh-lockdown
+  
+  - name: Disable Root Shell [SSH-7412]
+    ansible.builtin.user:
+      name: root
+      shell: /usr/sbin/nologin
+    when: PVE == false
+    tags:
+      - ssh-lockdown
+      
+  #- name: Disable password authentication
+  #  lineinfile:
+  #    dest: /etc/ssh/sshd_config
+  #    regexp: "PasswordAuthentication"
+  #    line: "PasswordAuthentication no"
+  #    state: present
+  #  notify: restart ssh
+  #  tags:
+  #    - ssh-lockdown
+  
+  - name: Disable Password Authentication for Root
+    ansible.builtin.blockinfile:
+      path: /etc/ssh/sshd_config
+      block: |
+        Match User root
+          PasswordAuthentication no
+    notify: restart ssh
+    tags:
+      - ssh-lockdown
+  
+  - name: Disable TCPKeepAlive [SSH-7408]
+    ansible.builtin.lineinfile:
+      dest: /etc/ssh/sshd_config
+      regexp: "TCPKeepAlive"
+      line: "TCPKeepAlive no"
+      state: present
+    notify: restart ssh
+  
+  #- name: Disable TCP Forwarding [SSH-7408] 
+  #  ansible.builtin.lineinfile:
+  #    dest: /etc/ssh/sshd_config
+  #    regexp: "AllowTcpForwarding"
+  #    line: "AllowTCPForwarding no"
+  #    state: present
+  #  notify: restart ssh
+  #  when: not PVE
+  
+  - name: Enable TCP Forwarding on PVE for Live Migration
+    ansible.builtin.lineinfile:
+      dest: /etc/ssh/sshd_config
+      regexp: "AllowTcpForwarding"
+      line: "AllowTCPForwarding yes"
+      state: present
+    notify: restart ssh
+    when: PVE
+  
+  - name: Configure ClientAliveCountMax from 3 to 2 [SSH-7408] 
+    ansible.builtin.lineinfile:
+      dest: /etc/ssh/sshd_config
+      regexp: "ClientAliveCountMax"
+      line: "ClientAliveCountMax 2"
+      state: present
+    notify: restart ssh
+  
+  - name: Configure ClientAliveInterval from 0 to 300 [SSH-7408] 
+    ansible.builtin.lineinfile:
+      dest: /etc/ssh/sshd_config
+      regexp: "ClientAliveInterval"
+      line: "ClientAliveInterval 300"
+      state: present
+    notify: restart ssh
+  
+  #- name: Configure MaxAuthTries from 6 to 3 [SSH-7408]
+  #  ansible.builtin.lineinfile:
+  #    dest: /etc/ssh/sshd_config
+  #    regexp: "MaxAuthTries"
+  #    line: "MaxAuthTries 3"
+  #    state: present
+  #  notify: restart ssh
+  
+  - name: Configure LogLevel from INFO to VERBOSE [SSH-7408] 
+    ansible.builtin.lineinfile:
+      dest: /etc/ssh/sshd_config
+      regexp: "LogLevel"
+      line: "LogLevel VERBOSE"
+      state: present
+    notify: restart ssh
+  
+  - name: Configure MaxSessions from 10 to 2 [SSH-7408]
+    ansible.builtin.lineinfile:
+      dest: /etc/ssh/sshd_config
+      regexp: "MaxSessions"
+      line: "MaxSessions 2"
+      state: present
+    notify: restart ssh
+  
+  - name: Enable SSH StrictModes [SSH-7416] 
+    ansible.builtin.lineinfile:
+      dest: /etc/ssh/sshd_config
+      regexp: "StrictModes"
+      line: "StrictModes yes"
+      state: present
+    notify: restart ssh
+  tags:
+    - ssh

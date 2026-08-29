@@ -1,0 +1,60 @@
+127.0.0.1 localhost.localdomain localhost
+{% if groups[pve_group] | length  == 1 %}
+{{ ansible_facts.default_ipv4.address }} {{ server_fqdn }} {{ serverHostname }}
+
+{% endif %}
+{% if groups[pve_group] | length  == 2 %}
+{% if inventory_hostname == groups[pve_group][0] %}
+{{ hostvars[groups[pve_group][0]]['pve_interfaces']['mgmt']['ip'] }} {{ hostvars[groups[pve_group][0]]['serverHostname'] }}.{{ location_domain_name }} {{ hostvars[groups[pve_group][0]]['serverHostname'] }}
+{{ hostvars[groups[pve_group][1]]['pve_interfaces']['mgmt']['ip'] }} {{ hostvars[groups[pve_group][1]]['serverHostname'] }}.{{ location_domain_name }} {{ hostvars[groups[pve_group][1]]['serverHostname'] }} adjacent
+{% endif %}
+{% if inventory_hostname == groups[pve_group][1] %}
+{{ hostvars[groups[pve_group][0]]['pve_interfaces']['mgmt']['ip'] }} {{ hostvars[groups[pve_group][0]]['serverHostname'] }}.{{ location_domain_name }} {{ hostvars[groups[pve_group][0]]['serverHostname'] }} adjacent
+{{ hostvars[groups[pve_group][1]]['pve_interfaces']['mgmt']['ip'] }} {{ hostvars[groups[pve_group][1]]['serverHostname'] }}.{{ location_domain_name }} {{ hostvars[groups[pve_group][1]]['serverHostname'] }}
+{% endif %}
+
+{% endif %}
+{% if groups[pve_group] | length  == 3 %}
+{{ hostvars[groups[pve_group][0]]['pve_interfaces']['mgmt']['ip'] }} {{ hostvars[groups[pve_group][0]]['serverHostname'] }}.{{ location_domain_name }} {{ hostvars[groups[pve_group][0]]['serverHostname'] }}
+{{ hostvars[groups[pve_group][1]]['pve_interfaces']['mgmt']['ip'] }} {{ hostvars[groups[pve_group][1]]['serverHostname'] }}.{{ location_domain_name }} {{ hostvars[groups[pve_group][1]]['serverHostname'] }}
+{{ hostvars[groups[pve_group][2]]['pve_interfaces']['mgmt']['ip'] }} {{ hostvars[groups[pve_group][2]]['serverHostname'] }}.{{ location_domain_name }} {{ hostvars[groups[pve_group][2]]['serverHostname'] }}
+
+{% endif %}
+{% if groups[pve_group] | length  == 4 %}
+{{ hostvars[groups[pve_group][0]]['pve_interfaces']['mgmt']['ip'] }} {{ hostvars[groups[pve_group][0]]['serverHostname'] }}.{{ location_domain_name }} {{ hostvars[groups[pve_group][0]]['serverHostname'] }}
+{{ hostvars[groups[pve_group][1]]['pve_interfaces']['mgmt']['ip'] }} {{ hostvars[groups[pve_group][1]]['serverHostname'] }}.{{ location_domain_name }} {{ hostvars[groups[pve_group][1]]['serverHostname'] }}
+{{ hostvars[groups[pve_group][2]]['pve_interfaces']['mgmt']['ip'] }} {{ hostvars[groups[pve_group][2]]['serverHostname'] }}.{{ location_domain_name }} {{ hostvars[groups[pve_group][2]]['serverHostname'] }}
+{{ hostvars[groups[pve_group][3]]['pve_interfaces']['mgmt']['ip'] }} {{ hostvars[groups[pve_group][3]]['serverHostname'] }}.{{ location_domain_name }} {{ hostvars[groups[pve_group][3]]['serverHostname'] }}
+
+{% endif %}
+{% if hostvars[groups[pve_group][0]]['pve_interfaces']['coro0']['ip'] is defined %}
+#corosync network hosts
+{{ hostvars[groups[pve_group][0]]['pve_interfaces']['coro0']['ip'] }} {{ hostvars[groups[pve_group][0]]['serverHostname'] }}-coro0.{{ location_domain_name }} {{ hostvars[groups[pve_group][0]]['serverHostname'] }}-coro0
+{{ hostvars[groups[pve_group][1]]['pve_interfaces']['coro0']['ip'] }} {{ hostvars[groups[pve_group][1]]['serverHostname'] }}-coro0.{{ location_domain_name }} {{ hostvars[groups[pve_group][1]]['serverHostname'] }}-coro0
+{{ hostvars[groups[pve_group][2]]['pve_interfaces']['coro0']['ip'] }} {{ hostvars[groups[pve_group][2]]['serverHostname'] }}-coro0.{{ location_domain_name }} {{ hostvars[groups[pve_group][2]]['serverHostname'] }}-coro0
+{{ hostvars[groups[pve_group][3]]['pve_interfaces']['coro0']['ip'] }} {{ hostvars[groups[pve_group][3]]['serverHostname'] }}-coro0.{{ location_domain_name }} {{ hostvars[groups[pve_group][3]]['serverHostname'] }}-coro0
+
+{% endif %}
+{% if hostvars[groups[pve_group][0]]['pve_interfaces']['coro1']['ip'] is defined %}
+{{ hostvars[groups[pve_group][0]]['pve_interfaces']['coro1']['ip'] }} {{ hostvars[groups[pve_group][0]]['serverHostname'] }}-coro1.{{ location_domain_name }} {{ hostvars[groups[pve_group][0]]['serverHostname'] }}-coro1
+{{ hostvars[groups[pve_group][1]]['pve_interfaces']['coro1']['ip'] }} {{ hostvars[groups[pve_group][1]]['serverHostname'] }}-coro1.{{ location_domain_name }} {{ hostvars[groups[pve_group][1]]['serverHostname'] }}-coro1
+{{ hostvars[groups[pve_group][2]]['pve_interfaces']['coro1']['ip'] }} {{ hostvars[groups[pve_group][2]]['serverHostname'] }}-coro1.{{ location_domain_name }} {{ hostvars[groups[pve_group][2]]['serverHostname'] }}-coro1
+{{ hostvars[groups[pve_group][3]]['pve_interfaces']['coro1']['ip'] }} {{ hostvars[groups[pve_group][3]]['serverHostname'] }}-coro1.{{ location_domain_name }} {{ hostvars[groups[pve_group][3]]['serverHostname'] }}-coro1
+
+{% endif %}
+{% if pve_ceph_enabled %}
+#ceph network hosts
+{{ hostvars[groups[pve_group][0]]['pve_interfaces']['ceph']['ip'] }} {{ hostvars[groups[pve_group][0]]['serverHostname'] }}-ceph.{{ location_domain_name }} {{ hostvars[groups[pve_group][0]]['serverHostname'] }}-ceph
+{{ hostvars[groups[pve_group][1]]['pve_interfaces']['ceph']['ip'] }} {{ hostvars[groups[pve_group][1]]['serverHostname'] }}-ceph.{{ location_domain_name }} {{ hostvars[groups[pve_group][1]]['serverHostname'] }}-ceph
+{{ hostvars[groups[pve_group][2]]['pve_interfaces']['ceph']['ip'] }} {{ hostvars[groups[pve_group][2]]['serverHostname'] }}-ceph.{{ location_domain_name }} {{ hostvars[groups[pve_group][2]]['serverHostname'] }}-ceph
+{{ hostvars[groups[pve_group][3]]['pve_interfaces']['ceph']['ip'] }} {{ hostvars[groups[pve_group][3]]['serverHostname'] }}-ceph.{{ location_domain_name }} {{ hostvars[groups[pve_group][3]]['serverHostname'] }}-ceph
+
+{% endif %}
+# The following lines are desirable for IPv6 capable hosts
+
+::1     ip6-localhost ip6-loopback
+fe00::0 ip6-localnet
+ff00::0 ip6-mcastprefix
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+ff02::3 ip6-allhosts

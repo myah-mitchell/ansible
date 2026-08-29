@@ -1,0 +1,43 @@
+---
+#### private.yml — everything this repo would rather not publish, in one place.
+####
+#### This file is loaded automatically by Ansible for every host (it lives
+#### in group_vars/all/). The values below are safe, sanitized placeholders
+#### so the public repo works standalone with zero private data.
+####
+#### To use your own real values: build a small private repo containing a
+#### hosts.yml and a group_vars/all/private.yml with your real content (see
+#### private-repo.example/ at the root of this repo for a ready-to-copy
+#### skeleton), then have your bootstrap step overwrite this file and
+#### hosts.yml with the real ones before running ansible-playbook. See
+#### README.md for the exact commands.
+
+# SSH public keys to install. Empty here — no keys are installed. See
+# roles/users/tasks/*.yml and roles/users/defaults/main.yml.
+admin_ssh_public_keys: []
+ansible_ssh_public_keys: []
+# client_ssh_public_keys defaults to admin_ssh_public_keys — only set this if
+# the end-user login (client_account) should have a different key than admin:
+# client_ssh_public_keys: []
+
+# CA certs to trust on every host, as a list of {name, content}. Empty here
+# — no CAs are installed. See roles/certificates/tasks/certificates.yml.
+ca_certificates: []
+
+# SSH login banner (/etc/legal). See roles/ssh/defaults/main.yml and
+# roles/ssh/tasks/ssh.yml for how these two are rendered together.
+# ssh_legal_banner_name: "{{ short_name }}"
+# ssh_legal_banner_body: |
+#   Unauthorized access to this system is prohibited.
+#   All activity may be monitored and reported.
+
+# The human admin login (not the ansible service account). See
+# roles/users/defaults/main.yml.
+client_account: "clientuser"
+
+# Read-only PAT scoped to just the private ansible-private repo. Baked into
+# the cloud-init template (see roles/pve/templates/cloudinit-vendor.yml.j2)
+# so freshly-provisioned VMs can pull this same private overlay on first
+# boot. Empty here — a fresh VM then just runs against this public repo's
+# sanitized example data instead. See roles/pve/defaults/main.yml.
+ansible_private_repo_token: ""

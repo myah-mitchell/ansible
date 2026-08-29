@@ -1,0 +1,38 @@
+---
+- name: Include Proxmox Repo Signing Key
+  ansible.builtin.include_tasks: proxmox-repo-key.yml
+  tags:
+    - pbs-repos
+
+- name: Include Legacy PBS apt Entry Cleanup
+  ansible.builtin.include_tasks: pbs-legacy-cleanup.yml
+  tags:
+    - pbs-repos
+
+- name: Remove Enterprise PBS Repo
+  ansible.builtin.deb822_repository:
+    name: pbs-enterprise
+    state: absent
+  tags:
+    - pbs-repos
+
+- name: Add No Subscription PBS Repo
+  ansible.builtin.deb822_repository:
+    name: pbs-no-subscription
+    types: deb
+    uris: http://download.proxmox.com/debian/pbs
+    suites: "{{ ansible_facts.distribution_release }}"
+    components: pbs-no-subscription
+    signed_by: /usr/share/keyrings/proxmox-archive-keyring.gpg
+    state: present
+  tags:
+    - pbs-repos
+
+- name: Disable No Subscription Nag
+  ansible.builtin.replace:
+    path: /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js
+    regexp: "res === null \\|\\| res === undefined \\|\\| \\!res \\|\\| res\\n\\t\\t\\t.data.status.toLowerCase\\(\\) \\!== 'active'"
+    replace: "false"
+    backup: yes
+  tags:
+    - pbs-repos

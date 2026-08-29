@@ -1,0 +1,20 @@
+---
+- name: pbs_restart
+  service:
+    name: proxmox-backup
+    state: restarted
+
+- name: pbsproxy_restart
+  service:
+    name: proxmox-backup-proxy
+    state: restarted
+
+- name: networking_restart
+  service:
+    name: networking
+    state: restarted
+
+- name: nginx_reload
+  service:
+    name: nginx
+    state: reloaded

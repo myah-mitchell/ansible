@@ -1,0 +1,26 @@
+---
+- name: Create Proxmox Nginx Override Folder
+  ansible.builtin.file:
+    path: /etc/systemd/system/nginx.service.d
+    recurse: true
+    state: directory
+
+- name: Create Proxmox Nginx Override File
+  ansible.builtin.copy:
+    src: files/nginx-override-pve
+    dest: /etc/systemd/system/nginx.service.d/override.conf
+    owner: root
+    group: root
+    mode: '0644'
+    directory_mode: '0755'
+  notify: restart nginx
+
+- name: Create Proxmox Nginx File
+  ansible.builtin.copy:
+    src: files/nginx-site-pve
+    dest: /etc/nginx/sites-available/default
+    owner: root
+    group: root
+    mode: '0644'
+    directory_mode: '0755'
+  notify: restart nginx

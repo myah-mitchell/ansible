@@ -1,0 +1,8 @@
+---
+- name: grub_update
+  ansible.builtin.command:
+    cmd: update-grub
+
+- name: qemu_restart
+  ansible.builtin.command:
+    cmd: systemctl restart qemu-guest-agent.service

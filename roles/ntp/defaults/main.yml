@@ -1,0 +1,6 @@
+---
+#### NTP role configures ntp on the server via one of multiple
+####   software packages.
+NTP: true
+ntp_service: ""
+ntp_timezone: "America/Chicago"

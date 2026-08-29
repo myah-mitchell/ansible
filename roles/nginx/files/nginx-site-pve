@@ -1,0 +1,31 @@
+server {
+        listen 80;
+        server_name $http_host;
+        rewrite ^ https://$host$uri permanent;
+}
+server {
+        listen   443 ssl;
+        server_name $hostname;
+
+        ssl_certificate /etc/pve/local/pve-ssl.pem;
+        ssl_certificate_key /etc/pve/local/pve-ssl.key;
+
+        proxy_redirect off;
+        location / {
+                proxy_pass https://localhost:8006;
+                proxy_ssl_name $hostname;
+                proxy_ssl_trusted_certificate /etc/pve/local/pve-ssl.pem;
+                proxy_ssl_server_name on;
+                proxy_ssl_verify off;
+                proxy_buffering off;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "upgrade";
+                proxy_set_header Host $host;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_set_header X-Forwarded-For $remote_addr;
+                proxy_set_header X-Forwarded-Port $server_port;
+                proxy_set_header X-Request-Start $msec;
+                proxy_set_header X-Real-IP $remote_addr;
+        }
+}

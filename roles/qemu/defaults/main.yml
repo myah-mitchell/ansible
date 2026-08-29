@@ -1,0 +1,4 @@
+---
+#### QEMU role will auto enable it's self if the server is a qemu machine. This
+####   instals the qemu packages and also setup a serial terminal.
+QEMU: false

@@ -1,0 +1,36 @@
+---
+- name: Install Unattended Update Packages
+  ansible.builtin.apt:
+    name:
+      - unattended-upgrades
+    state: present
+    update_cache: false
+  retries: 3
+  delay: 5
+
+#- ansible.builtin.stat: 
+#    path: /etc/apt/apt.conf.d/20auto-upgrades
+#  register: statResult
+
+- name: Configure Auto Upgrades
+  ansible.builtin.copy:
+    src: files/20auto-upgrades
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root
+    group: root
+    mode: 0644
+#  when: statResult.stat.exists == false
+
+
+#- ansible.builtin.stat: 
+#    path: /etc/apt/apt.conf.d/50unattended-upgrades
+#  register: statResult
+
+- name: Configure Unattended Upgrades
+  ansible.builtin.copy:
+    src: files/50unattended-upgrades
+    dest: /etc/apt/apt.conf.d/50unattended-upgrades
+    owner: root
+    group: root
+    mode: 0644
+#  when: statResult.stat.exists == false

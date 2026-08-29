@@ -1,0 +1,9 @@
+---
+- name: Include Mosh Setup Tasks
+  ansible.builtin.include_tasks: mosh.yml
+  args:
+    apply:
+      become: true
+  when: MOSH|bool
+  tags:
+    - mosh

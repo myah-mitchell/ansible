@@ -1,0 +1,8 @@
+---
+- name: Include Auditd Setup Tasks
+  ansible.builtin.include_tasks: auditd.yml
+  args:
+    apply:
+      become: true
+  when: AUDITD|bool
+

@@ -1,0 +1,53 @@
+---
+#- name: Print all available facts
+#  ansible.builtin.debug:
+#    var: ansible_facts
+
+- name: "Setting Var: admin_name={{ abbr_name|lower }}admin"
+  ansible.builtin.set_fact:
+    admin_name: "{{ abbr_name|lower }}admin"
+  when: admin_name | length == 0
+
+- name: "Setting Var: admin_email={{ abbr_name|lower }}admin@{{ domain_name|lower }}"
+  ansible.builtin.set_fact:
+    admin_email: "{{ abbr_name|lower }}admin@{{ domain_name|lower }}"
+  when: admin_list | length == 0
+
+- name: "Setting Var: admin_list={{ abbr_name|lower }}admins@{{ domain_name|lower }}"
+  ansible.builtin.set_fact:
+    admin_list: "{{ abbr_name|lower }}admins@{{ domain_name|lower }}"
+  when: admin_list | length == 0
+
+- name: "Setting Var: location_domain_name={{ location_abbr|lower + '.' if location_abbr else '' }}{{ domain_name|lower }}"
+  ansible.builtin.set_fact:
+    location_domain_name: "{{ location_abbr|lower + '.' if location_abbr else '' }}{{ domain_name|lower }}"
+  when: location_domain_name | length == 0
+
+- name: "Setting Var: serverHostname={{ ansible_facts.hostname }}"
+  ansible.builtin.set_fact:
+    serverHostname: "{{ ansible_facts.hostname|lower }}"
+  when: serverHostname | length == 0
+
+- name: "Setting Var: server_fqdn={{ serverHostname|lower }}.{{ location_domain_name|lower if location_domain_name else '' }}"
+  ansible.builtin.set_fact:
+    server_fqdn: "{{ serverHostname|lower }}.{{ location_domain_name|lower if location_domain_name else '' }}"
+  when: server_fqdn | length == 0
+
+- name: "Setting Var: serverRole=generic"
+  ansible.builtin.set_fact:
+    serverRole: "generic"
+  when: serverRole | length == 0
+
+- name: "Setting Var: QEMU=true"
+  ansible.builtin.set_fact:
+    QEMU: true
+  when: ansible_facts.system_vendor == "QEMU"
+
+- name: Validating Server Virtualization Role Matches Configured Vars
+  ansible.builtin.fail:
+    msg: "Server is believed to be a {{ ansible_facts.virtualization_type }} host, but PVE == false"
+  when: 
+    - ansible_facts.virtualization_type == "host"
+    - not PVE
+    - not PBS
+

@@ -1,0 +1,53 @@
+---
+- block:
+  # Task looks for existing default config to be used in later tasks.
+  - name: Check for exisiting default ZFS ARC Max Memory Config (2GB)
+    lineinfile:
+      dest: /etc/modprobe.d/zfs.conf
+      line: "options zfs zfs_arc_max=2095054848"
+    check_mode: yes
+    register: zfsDefaultConfigExists
+    changed_when: zfsDefaultConfigExists.failed
+
+  # Task is only ran if existing ZFS config is still at default settings
+  # if zfs.conf has been updated in the past, this task is skipped.
+  # A 4GB ARC will support upto 2TB of ZFS disk space.
+  - name: Set ZFS ARC (Adaptive Replacement Cache) Max Memory to 4GB
+    lineinfile:
+      dest: /etc/modprobe.d/zfs.conf
+      regexp: "^.*zfs_arc_max.*$"
+      line: 'options zfs zfs_arc_max=4294967296'
+      state: present
+    notify: update-initramfs
+    when: zfsDefaultConfigExists.msg | length == 0
+
+  # Task is only ran if existing ZFS config is still at default settings
+  # if zfs.conf has been updated in the past, this task is skipped
+  # This is set to one byte less than ARC Max so all memory is reserved.
+  - name: Set ZFS ARC (Adaptive Replacement Cache) Min Memory to ~4GB
+    lineinfile:
+      dest: /etc/modprobe.d/zfs.conf
+      regexp: "^.*zfs_arc_min.*$"
+      line: 'options zfs zfs_arc_min=4294967295'
+      state: present
+    notify: update-initramfs
+    when: zfsDefaultConfigExists.msg | length == 0
+
+  - name: Host File for PVE (Proxmox)
+    ansible.builtin.template:
+      src: templates/hosts.j2
+      dest: /etc/hosts
+      owner: root
+      group: root
+      mode: '0644'
+
+  - name: Install PVE (Proxmox) Rollback ZFS Script
+    ansible.builtin.copy:
+      src: files/rollback-zfs
+      dest: /usr/local/bin/rollback-zfs
+      owner: root
+      group: root
+      mode: '0500'
+
+  tags:
+    - pve-general

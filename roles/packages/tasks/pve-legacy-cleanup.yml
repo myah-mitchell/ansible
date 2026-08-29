@@ -1,0 +1,16 @@
+---
+# One-time cleanup for hosts already provisioned by the old apt_repository-
+# based tasks these replaced. Both PVE repo variants shared the
+# "pve-enterprise" sources.list.d filename, and both Ceph variants shared
+# "ceph", so either enterprise or no-subscription state could have left
+# either file behind - remove both files outright before adding the new
+# deb822 entries below.
+- name: Remove Legacy PVE apt Entry
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/pve-enterprise.list
+    state: absent
+
+- name: Remove Legacy Ceph apt Entry
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/ceph.list
+    state: absent

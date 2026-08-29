@@ -1,0 +1,7 @@
+---
+- name: Include dotfiles sync tasks
+  ansible.builtin.include_tasks: sync.yml
+  args:
+    apply:
+      become: true
+  when: DOTFILES|bool

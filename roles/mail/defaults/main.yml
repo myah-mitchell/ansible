@@ -1,0 +1,5 @@
+---
+#### MAIL role configures mail/smtp on the server via one of multiple
+####   software packages.
+MAIL: true
+mail_service: "postfix"

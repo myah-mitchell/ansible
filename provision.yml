@@ -1,0 +1,123 @@
+---
+
+- hosts: "{{ target }}"
+  become_user: root
+  become: true
+  gather_facts: true
+
+  vars:
+    short_name: ""
+    abbr_name: ""
+    location_abbr: ""
+    domain_name: ""
+
+  vars_prompt:
+    - name: target
+      prompt: |
+        Here are the hosts and hostgroups available to run against:
+        {{ groups | dict2items | json_query('[?key!=`all` && key!=`ungrouped`]') | items2dict | to_nice_yaml }}
+        Please provide host or group patterns with comma-separated,
+        or hit Enter for default
+      private: no
+      default: ubuntu
+
+    - name: server_password
+      prompt: Enter Admin Password
+      private: true
+      confirm: true
+
+    - name: short_name
+      prompt: short_name
+      default: "MYMI"
+      private: false
+
+    - name: abbr_name
+      prompt: abbr_name
+      default: "mm"
+      private: false
+
+    - name: location_abbr
+      prompt: location_abbr
+      default: "h"
+      private: false
+
+    - name: domain_name
+      prompt: domain_name
+      default: "myah-mitchell.com"
+      private: false
+
+  roles:
+    - role: packages
+      tags: [ packages, updates ]
+
+    - role: provision
+      tags: [ always, provision ]
+
+    - role: users
+      tags: users
+
+    - role: certificates
+      tags: certificates
+
+    - role: ntp
+      tags: ntp
+
+    - role: hostname
+      tags: hostname
+
+    - role: mail
+      tags: mail
+
+    - role: ssh
+      tags: ssh
+
+    - role: vrrp
+      tags: vrrp
+
+    - role: pbs
+      tags: pbs
+
+    - role: pmg
+      tags: pmg
+
+    - role: pve
+      tags: pve
+
+    - role: qemu
+      tags: qemu
+
+    - role: firewall
+      tags: firewall
+
+    - role: mosh
+      tags: mosh
+
+    - role: logging
+      tags: logging
+
+    - role: swap
+      tags: swap
+
+    - role: autoupdate
+      tags: [ autoupdate, auto-update ]
+
+    - role: fail2ban
+      tags: fail2ban
+
+    - role: nginx
+      tags: nginx
+
+    - role: docker
+      tags: docker
+
+    - role: monitoring
+      tags: monitoring
+
+    - role: dotfiles
+      tags: dotfiles
+
+    - role: auditd
+      tags: auditd
+
+    - role: cleanup
+      tags: [ always, cleanup ]

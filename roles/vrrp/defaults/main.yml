@@ -1,0 +1,9 @@
+---
+VRRP: false
+vrrp_group: "{{ target }}"
+vrrp_service: "keepalived"
+vrrp_instance: "VI_1"
+vrrp_interface: "vmbr0"
+vrrp_router_id: 135
+vrrp_pass: "abcd1234"
+vrrp_ip: "{{ ansible_facts.default_ipv4.address | regex_replace('.$','0')}}"

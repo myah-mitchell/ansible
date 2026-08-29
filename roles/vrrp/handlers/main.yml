@@ -1,0 +1,5 @@
+---
+- name: keepalived_restart
+  ansible.builtin.service:
+    name: keepalived
+    state: restarted

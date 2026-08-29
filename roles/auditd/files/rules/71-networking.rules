@@ -1,0 +1,11 @@
+## This is to check if the system is making or receiving connections
+## externally
+-a always,exit -F arch=b64 -S accept,connect -F key=external-access
+
+## network configuration
+-w /etc/hosts -p wa -k hosts
+-w /etc/network/ -p wa -k network
+
+## changes to hostname
+-a exit,always -F arch=b32 -S sethostname -k hostname
+-a exit,always -F arch=b64 -S sethostname -k hostname

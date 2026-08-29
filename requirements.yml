@@ -1,0 +1,14 @@
+---
+# Requires ansible-core >= 2.15 (ansible.builtin.deb822_repository, used by
+# the packages role's apt repo tasks).
+
+roles:
+# All needed roles include here
+
+
+collections:
+# All needed collections include here
+- ansible.utils  # update_fact module, ipaddr filter
+- ansible.posix  # authorized_key, mount, sysctl
+- community.general  # lvg, lvol, filesystem, ufw, timezone
+- community.crypto  # openssl_privatekey, openssl_csr

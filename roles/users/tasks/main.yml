@@ -1,0 +1,43 @@
+---
+- name: Include System User Setup Tasks
+  ansible.builtin.include_tasks: users.yml
+  args:
+    apply:
+      become: true
+  when: USERS|bool
+
+- name: Include Root User Setup Tasks
+  ansible.builtin.include_tasks: user_root.yml
+  args:
+    apply:
+      become: true
+  when: 
+    - USERS|bool
+    - users_root_setup|bool
+
+- name: Include {{ admin_name }} User Setup Tasks
+  ansible.builtin.include_tasks: user_admin.yml
+  args:
+    apply:
+      become: true
+  when: 
+    - USERS|bool
+    - users_admin_setup|bool
+
+- name: Include {{ ansible_account }} User Setup Tasks
+  ansible.builtin.include_tasks: user_ansible.yml
+  args:
+    apply:
+      become: true
+  when: 
+    - USERS|bool
+    - users_ansible_setup|bool
+
+- name: Include Client User Setup Tasks
+  ansible.builtin.include_tasks: user_client.yml
+  args:
+    apply:
+      become: true
+  when: 
+    - USERS|bool
+    - users_client_setup|bool

@@ -1,0 +1,92 @@
+---
+- block:
+  - name: Install FRR (Free Range Routing)
+    apt:
+      name: frr
+      state: present
+      update_cache: false
+    retries: 3
+    delay: 5
+    when:
+      - pve_cluster_routed
+
+  - name: Enable OpenFabric Daemon
+    ansible.builtin.lineinfile:
+      dest: /etc/frr/daemons
+      regexp: "^fabricd=no"
+      line: "fabricd=yes"
+      state: present
+    notify:
+      - frr_restart
+    when:
+      - pve_cluster_routed
+
+  - name: Create FRR file for an Routed Multi-Node Cluster
+    ansible.builtin.template:
+      src: templates/frr.j2
+      dest: /etc/frr/frr.conf
+      owner: frr
+      group: frr
+      mode: '0640'
+      trim_blocks: true
+      lstrip_blocks: true
+    notify:
+      #- ifreload
+      - frr_restart
+    when:
+      - pve_cluster_routed
+
+  - name: Create Network Interfaces file for an Routed Multi-Node Cluster
+    ansible.builtin.template:
+      src: templates/interfaces-routed.j2
+      dest: /etc/network/interfaces
+      owner: root
+      group: root
+      mode: '0644'
+      trim_blocks: true
+      lstrip_blocks: true
+    notify:
+      - networking_restart
+    when:
+      - pve_cluster_routed
+
+  - name: Setup Migration Network to use FRR Interfaces
+    ansible.builtin.lineinfile:
+      dest: /etc/pve/datacenter.cfg
+      regexp: "^migration:"
+      line: "migration: network={{ ( pve_interfaces['ceph']['ip'] + '/' + pve_interfaces['ceph']['cidr'] ) | ansible.utils.ipaddr('0') }},type=insecure"
+      state: present
+    when:
+      - pve_cluster_routed
+
+  - name: Create Network Interfaces file
+    ansible.builtin.template:
+      src: templates/interfaces-switched.j2
+      dest: /etc/network/interfaces
+      owner: root
+      group: root
+      mode: '0644'
+      trim_blocks: true
+      lstrip_blocks: true
+    notify:
+      - networking_restart
+    when:
+      - pve_cluster_switched
+
+  - name: Create Network Interfaces file
+    ansible.builtin.template:
+      src: templates/interfaces.j2
+      dest: /etc/network/interfaces
+      owner: root
+      group: root
+      mode: '0644'
+      trim_blocks: true
+      lstrip_blocks: true
+    notify:
+      - networking_restart
+    when:
+      - not pve_cluster_routed
+      - not pve_cluster_switched
+
+  tags:
+    - pve-network

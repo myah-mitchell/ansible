@@ -1,0 +1,172 @@
+---
+- name: Download Node Exporter
+  ansible.builtin.get_url:
+    url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-{{ node_exporter_arch }}.tar.gz"
+    dest: "/tmp/node_exporter-{{ node_exporter_version }}.linux-{{ node_exporter_arch }}.tar.gz"
+    mode: '0644'
+
+- name: Extract Node Exporter archive
+  ansible.builtin.unarchive:
+    src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-{{ node_exporter_arch }}.tar.gz"
+    dest: /tmp
+    remote_src: true
+
+- name: Copy Node Exporter binary to /usr/local/bin
+  ansible.builtin.copy:
+    src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-{{ node_exporter_arch }}/node_exporter"
+    dest: /usr/local/bin/node_exporter
+    owner: root
+    group: root
+    mode: '0755'
+    remote_src: true
+  notify: restart node_exporter
+
+- name: Remove Node Exporter download artifacts
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/tmp/node_exporter-{{ node_exporter_version }}.linux-{{ node_exporter_arch }}.tar.gz"
+    - "/tmp/node_exporter-{{ node_exporter_version }}.linux-{{ node_exporter_arch }}"
+
+- name: Create node-exporter config directory
+  ansible.builtin.file:
+    path: /etc/node-exporter
+    state: directory
+    owner: root
+    group: root
+    mode: '0775'
+
+- name: Create node_exporter system user
+  ansible.builtin.user:
+    name: node_exporter
+    system: true
+    shell: /bin/false
+    create_home: false
+
+- name: Generate Node Exporter TLS private key
+  community.crypto.openssl_privatekey:
+    path: /etc/node-exporter/node_exporter.key
+    size: 2048
+    owner: node_exporter
+    group: node_exporter
+    mode: '0400'
+
+- name: Generate Node Exporter TLS CSR
+  community.crypto.openssl_csr:
+    path: /etc/node-exporter/node_exporter.csr
+    privatekey_path: /etc/node-exporter/node_exporter.key
+    country_name: "{{ node_exporter_tls_country }}"
+    state_or_province_name: "{{ node_exporter_tls_state }}"
+    locality_name: "{{ node_exporter_tls_city }}"
+    organization_name: "{{ node_exporter_tls_org }}"
+    common_name: node-exporter
+    subject_alt_name:
+      - "DNS:{{ ansible_fqdn }}"
+    owner: node_exporter
+    group: node_exporter
+    mode: '0644'
+
+- name: Generate Node Exporter self-signed certificate
+  community.crypto.x509_certificate:
+    path: /etc/node-exporter/node_exporter.crt
+    privatekey_path: /etc/node-exporter/node_exporter.key
+    csr_path: /etc/node-exporter/node_exporter.csr
+    provider: selfsigned
+    selfsigned_not_after: "+3650d"
+    owner: node_exporter
+    group: node_exporter
+    mode: '0644'
+
+- name: Check if Node Exporter config exists
+  ansible.builtin.stat:
+    path: /etc/node-exporter/config.yml
+  register: node_exporter_config
+
+- name: Generate Node Exporter password hash
+  ansible.builtin.set_fact:
+    _node_exporter_password_hash: "{{ node_exporter_password | password_hash('bcrypt') }}"
+  when: not node_exporter_config.stat.exists
+  no_log: true
+
+- name: Create Node Exporter config
+  ansible.builtin.copy:
+    dest: /etc/node-exporter/config.yml
+    owner: node_exporter
+    group: node_exporter
+    mode: '0644'
+    content: |
+      tls_server_config:
+        cert_file: /etc/node-exporter/node_exporter.crt
+        key_file: /etc/node-exporter/node_exporter.key
+      basic_auth_users:
+        node-exporter-user: "{{ _node_exporter_password_hash }}"
+  when: not node_exporter_config.stat.exists
+  notify: restart node_exporter
+  no_log: true
+
+- name: Set ownership on node-exporter config directory
+  ansible.builtin.file:
+    path: /etc/node-exporter
+    owner: node_exporter
+    group: node_exporter
+    recurse: true
+
+- name: Set restricted permissions on node-exporter private key
+  ansible.builtin.file:
+    path: /etc/node-exporter/node_exporter.key
+    mode: '0400'
+
+- name: Create Node Exporter systemd service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/node_exporter.service
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      [Unit]
+      Description=Node Exporter
+      Wants=network-online.target
+      After=network-online.target
+
+      [Service]
+      User=node_exporter
+      Group=node_exporter
+      Type=simple
+      ExecStart=/usr/local/bin/node_exporter --web.config.file=/etc/node-exporter/config.yml
+      Restart=always
+      RestartSec=3
+
+      [Install]
+      WantedBy=multi-user.target
+  notify: restart node_exporter
+
+- name: Enable and start Node Exporter service
+  ansible.builtin.systemd:
+    name: node_exporter
+    state: started
+    enabled: true
+
+- name: Create Node Exporter UFW application config
+  ansible.builtin.copy:
+    dest: /etc/ufw/applications.d/node-exporter
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      [Node-Exporter]
+      title=Node-Exporter
+      description=Allows incoming traffic for Node-Exporter on port 9100
+      ports=9100/tcp
+  register: node_exporter_ufw_config
+
+- name: Update UFW Node-Exporter application
+  ansible.builtin.command:
+    cmd: ufw app update Node-Exporter
+  when: node_exporter_ufw_config.changed
+  changed_when: true
+
+- name: Allow Node-Exporter through UFW
+  community.general.ufw:
+    rule: allow
+    name: Node-Exporter

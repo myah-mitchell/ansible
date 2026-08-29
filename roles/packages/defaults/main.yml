@@ -1,0 +1,14 @@
+---
+#### PACKAGES Role installs baseline packages and handles
+####   package updates for the system.
+PACKAGES: true
+update_distro: false
+update_packages: true
+
+# Ceph release codename tracked by the ceph-enterprise/ceph-no-subscription
+# apt repos (e.g. https://enterprise.proxmox.com/debian/ceph-tentacle). This
+# doesn't follow ansible_facts.distribution_release the way the PVE/PBS/
+# Debian repos do, so it's bumped by hand on Proxmox's own Ceph upgrade
+# schedule - check https://pve.proxmox.com/wiki/Package_Repositories for the
+# current name before changing it.
+pve_ceph_release: tentacle

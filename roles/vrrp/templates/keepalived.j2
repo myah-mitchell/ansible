@@ -1,0 +1,18 @@
+vrrp_instance VI_1 {
+{% if inventory_hostname == groups[vrrp_group][0] %}
+    state MASTER
+{% else %}
+    state BACKUP
+{% endif %}
+    interface {{ vrrp_interface }}
+    virtual_router_id {{ vrrp_router_id }}
+    priority {{ (100 / (lookup('ansible.utils.index_of', groups[vrrp_group], 'regex', inventory_hostname ) + 1)) | int }}
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass {{ vrrp_pass }}
+    }
+    virtual_ipaddress {
+        {{ vrrp_ip }}
+    }
+}

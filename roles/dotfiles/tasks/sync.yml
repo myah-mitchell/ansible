@@ -1,0 +1,52 @@
+---
+- name: Clone/update dotfiles repo on the control node
+  ansible.builtin.git:
+    repo: "{{ dotfiles_repo_url }}"
+    dest: "{{ dotfiles_local_checkout }}"
+    version: "{{ dotfiles_repo_version }}"
+    accept_hostkey: true
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Ensure target user's GitHub directory exists
+  ansible.builtin.file:
+    path: "{{ dotfiles_remote_path }}"
+    state: directory
+    owner: "{{ dotfiles_target_user }}"
+    group: "{{ dotfiles_target_user }}"
+    mode: '0755'
+  become: true
+  become_user: "{{ dotfiles_target_user }}"
+
+# .git is included on purpose: the repo is public HTTPS with no credentials
+# involved, so there's nothing sensitive in it, and shipping it lets the
+# target user run their own `git pull` against it if they want to update
+# between ansible runs. That's purely a convenience for them — ansible still
+# owns the source of truth and re-syncs from its own control-node checkout
+# (above) on every run regardless of what the target user has done locally.
+- name: Push dotfiles tree to this host
+  ansible.posix.synchronize:
+    src: "{{ dotfiles_local_checkout }}/"
+    dest: "{{ dotfiles_remote_path }}/"
+    delete: false
+  become: true
+  become_user: "{{ dotfiles_target_user }}"
+
+# No flags: --windows (Windows/Alacritty PowerShell setup) and --claude (the
+# Claude Code stack) are both opt-in as of dotfiles' install.sh — these are
+# plain Ubuntu Docker VMs, not WSL2, and servers/shared boxes are meant to
+# skip both by default (see CLAUDE.md's Flags section), so the plain,
+# flag-less run already does the right thing.
+# No --cargo: cargo_install() already tries cargo-binstall (prebuilt binary) before
+# falling back to compiling from source — see dotfiles/install.sh and CLAUDE.md.
+- name: Run install.sh as the target user
+  ansible.builtin.command:
+    cmd: "{{ dotfiles_remote_path }}/install.sh"
+    chdir: "{{ dotfiles_remote_path }}"
+  become: true
+  become_user: "{{ dotfiles_target_user }}"
+  environment:
+    HOME: "/home/{{ dotfiles_target_user }}"
+  register: dotfiles_install_result
+  changed_when: "'[✓]' in dotfiles_install_result.stdout"

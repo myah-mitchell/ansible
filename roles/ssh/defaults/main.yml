@@ -1,0 +1,15 @@
+---
+#### SSH role configures the ssh service to be secure
+SSH: true
+
+# Legal login banner (/etc/legal). ssh_legal_banner_name is rendered as ASCII
+# art (via figlet) and combined with ssh_legal_banner_body, then framed —
+# see roles/ssh/tasks/ssh.yml and roles/ssh/filter_plugins/frame_text.py.
+# Override both in a private group_vars/all/private.yml for real branding.
+ssh_legal_banner_name: "{{ short_name }}"
+ssh_legal_banner_body: |
+  Unauthorized access prohibited. All access and activities not explicityly
+  allowed by the administrator are prohibited. All acvtivites are monitored
+  and logged. There is no privacy on this system. Unallowed access and
+  activities or any criminal activity will be reported to appropriate
+  personnel.

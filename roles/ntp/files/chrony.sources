@@ -1,0 +1,4 @@
+# This file is maintaintained by Ansible
+# This file is intentionally left blank
+# No config in this file as gatewayIP is added to
+# /etc/chrony/chrony.conf by Ansible

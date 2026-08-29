@@ -1,0 +1,4 @@
+---
+#### PBS (Proxmox Backup Server) role configures PBS and other needed items.
+PMG: false
+pmg_enterprise_repo: false # Distinguises between community and enterprise repo

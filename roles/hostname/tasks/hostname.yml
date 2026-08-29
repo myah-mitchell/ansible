@@ -1,0 +1,36 @@
+---
+### Configure Hostname
+- name: Update Hostname in /etc/hostname
+  ansible.builtin.copy:
+    dest: /etc/hostname
+    content: |
+      {{ server_fqdn }}
+  notify: update hostname
+
+- name: Update Hostname in /etc/mailname
+  ansible.builtin.copy:
+    dest: /etc/mailname
+    content: |
+      {{ server_fqdn }}
+  notify: update hostname
+
+- name: Update Hostname in /etc/hosts
+  lineinfile:
+    dest: /etc/hosts
+    regexp: "^(127.0.[0-9].[0-9]).*$"
+    line: \g<1> {{ server_fqdn }} {{ serverHostname }}
+    state: present
+    backrefs: yes
+  notify: update hostname
+  when: not PVE and not PBS
+
+- name: Update Hostname in /etc/hosts for PVE
+  lineinfile:
+    dest: /etc/hosts
+    regexp: "^{{ ansible_facts.vmbr0.ipv4.address }} .*pve$"
+    line: \g<1> {{ server_fqdn }} {{ serverHostname }}
+    backrefs: yes
+    state: present
+  notify: update hostname
+  when: PVE
+

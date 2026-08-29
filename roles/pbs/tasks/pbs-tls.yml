@@ -1,0 +1,114 @@
+---
+- block: 
+  - name: Check for Existing PBS OpenSSL private key
+    ansible.builtin.stat:
+      path: /etc/ssl/private/{{ serverHostname|lower }}-pbs-ssl.key
+    register: pbs_tls_key
+  
+  - name: Generate a PBS OpenSSL private Key (4096 bits, RSA)
+    become: false
+    delegate_to: localhost
+    community.crypto.openssl_privatekey:
+      #path: /etc/ssl/private/{{ serverHostname|lower }}-pbs-ssl.key
+      path: /tmp/{{ serverHostname|lower }}-pbs-ssl.key
+    when: not pbs_tls_key.stat.exists
+  
+  - name: Install a PBS OpenSSL private Key
+    ansible.builtin.copy:
+      src: /tmp/{{ serverHostname|lower }}-pbs-ssl.key
+      dest: /etc/ssl/private/{{ serverHostname|lower }}-pbs-ssl.key
+      owner: root
+      group: root
+      mode: '0500'
+    when: not pbs_tls_key.stat.exists
+  
+  - name: Create SSL CSR Folder
+    ansible.builtin.file: 
+      path: /etc/ssl/csr
+      state: directory 
+      mode: "0755" 
+      owner: "root"
+      group: "root"
+  
+  - name: Generate a PBS OpenSSL Certificate Signing Request
+    become: false
+    delegate_to: localhost
+    community.crypto.openssl_csr:
+      path: /tmp/{{ serverHostname|lower }}-pbs-ssl.csr
+      privatekey_path: /tmp/{{ serverHostname|lower }}-pbs-ssl.key
+      country_name: US
+      organization_name: "{{ short_name }}"
+      email_address: "{{ admin_list }}"
+      common_name: "{{ server_fqdn }}"
+      key_usage:
+        - nonRepudiation
+        - digitalSignature
+        - keyEncipherment
+      extended_key_usage:
+        - clientAuth
+        - serverAuth
+      subject_alt_name: "DNS:{{ server_fqdn }},DNS:{{ serverHostname|lower }}.{{ domain_name|lower }},DNS:{{ serverHostname|lower }},DNS:pbs.{{ location_domain_name }},DNS:pbs.{{ domain_name }},DNS:pbs,IP:{{ ansible_facts.default_ipv4.address }}"
+    register: pbsCSR
+    when: not pbs_tls_key.stat.exists
+  
+  - name: Install a PBS OpenSSL Certificate Signing Requst
+    ansible.builtin.copy:
+      src: /tmp/{{ serverHostname|lower }}-pbs-ssl.csr
+      dest: /etc/ssl/csr/{{ serverHostname|lower }}-pbs-ssl.csr
+      owner: root
+      group: root
+      mode: '0500'
+    when: not pbs_tls_key.stat.exists
+  
+  - name: Remove Local Copies of PBS OpenSSL Certificate
+    become: false
+    delegate_to: localhost
+    ansible.builtin.file:
+      path: /tmp/{{ serverHostname|lower }}-pbs-ssl.csr
+      state: absent
+  
+  - name: Remove Local Copies of PBS OpenSSL Certificate
+    become: false
+    delegate_to: localhost
+    ansible.builtin.file:
+      path: /tmp/{{ serverHostname|lower }}-pbs-ssl.key
+      state: absent
+  
+  #- name: "Sign PBS OpenSSL Certificate"
+  #  ansible.builtin.command: 
+  #    cmd: "make {{ pbsCSR.diff.after.public_key }}"
+  #  delegate_to: ca_server
+  #  register: pbsCERT
+  
+  - name: Check for Existing PBS OpenSSL Cert
+    ansible.builtin.stat:
+      path: /etc/ssl/{{ serverHostname|lower }}-pbs-ssl.pem
+    register: pbs_tls_pem
+
+  - name: Install PBS Signed Cert
+    ansible.builtin.copy:
+      src: /etc/ssl/{{ serverHostname|lower }}-pbs-ssl.pem
+      dest: /etc/proxmox-backup/proxy.pem
+      owner: root
+      group: backup
+      mode: '0640'
+      remote_src: true
+    when: pbs_tls_pem.stat.exists
+    notify:
+      - pbsproxy_restart
+      - nginx_reload
+  
+  - name: Install PBS TLS Key
+    ansible.builtin.copy:
+      src: /etc/ssl/private/{{ serverHostname|lower }}-pbs-ssl.key
+      dest: /etc/proxmox-backup/proxy.key
+      owner: root
+      group: backup
+      mode: '0640'
+      remote_src: true
+    when: pbs_tls_pem.stat.exists
+    notify: 
+      - pbsproxy_restart
+      - nginx_reload
+  tags: 
+    - pbs-tls

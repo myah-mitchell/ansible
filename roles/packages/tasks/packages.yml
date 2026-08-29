@@ -1,0 +1,56 @@
+---
+### Package Management
+- name: Upgrade Packages
+  ansible.builtin.apt:
+    upgrade: safe
+    update_cache: yes
+    cache_valid_time: 300
+  retries: 3
+  delay: 5
+  become: yes
+  when: update_packages
+
+- name: Upgrade Distro
+  ansible.builtin.apt:
+    upgrade: dist
+    update_cache: yes
+    cache_valid_time: 300
+  retries: 3
+  delay: 5
+  become: yes
+  when: update_distro
+
+- name: Install Packages
+  ansible.builtin.apt:
+    name:
+      - sudo      # Needed for ansible become commands (should already be installed)
+      - acl       # Needed for ansible become_user (setfacl on temp files; without it become falls back to a broken NFSv4 "chmod A+" attempt)
+      - git       # Needed to pull the ansible git library (should already be installed)
+      - sshpass   # Needed to allow ansible user password
+      - unzip     # Provides zip handling, needed for ansible BWS CLI Download (should already be installed)
+      - rsync     # Needed by the dotfiles role's synchronize task
+      - vim       # VIM over eMacs!
+      - htop      # Pretty top
+      - iftop     # htop for interfaces
+      - iotop     # htop for disks
+      - sysstat   # More systistic commands like iostat and pidstat
+      - mtr       # We like mtr
+      - ncdu      # Pretty DU
+      - multitail # Tail all the files
+      - zsh       # Login shell which replaces bash
+    state: present
+    update_cache: yes
+  retries: 3
+  delay: 5
+
+
+- name: Install Packages (Not PVE or PBS)
+  ansible.builtin.apt:
+    name:
+      - ansible   # Provides Ansible
+      - pip       # Needed for some Ansible commands
+    state: present
+    update_cache: yes
+  retries: 3
+  delay: 5
+  when: not PVE and not PBS and not PMG

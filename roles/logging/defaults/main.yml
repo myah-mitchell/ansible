@@ -1,0 +1,5 @@
+---
+#### LOGGING role set up rsyslog to log to the firewall.
+LOGGING: true
+logging_service: "rsyslog"
+syslog_server: "{{ ansible_facts.default_ipv4.gateway | default('') }}"

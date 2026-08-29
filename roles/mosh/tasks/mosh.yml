@@ -1,0 +1,20 @@
+---
+- name: Install mosh
+  ansible.builtin.apt:
+    name: mosh
+    state: present
+    update_cache: yes
+  retries: 3
+  delay: 5
+
+# mosh authenticates and starts mosh-server over a normal SSH connection
+# (already allowed by the ssh role), then hands the actual session off to a
+# UDP port in this range. Note that as ufw manages its own state, simply
+# removing this task can leave the range open — use delete=true or a
+# separate state=reset task instead.
+- name: Allow Mosh UDP port range through UFW
+  community.general.ufw:
+    rule: allow
+    port: "{{ mosh_udp_port_range }}"
+    proto: udp
+  when: firewall_service == "ufw"

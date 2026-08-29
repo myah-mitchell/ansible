@@ -1,0 +1,3 @@
+---
+#### AUDITD role installs and configures auditd
+AUDITD: false

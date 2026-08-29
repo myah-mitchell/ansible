@@ -1,0 +1,184 @@
+---
+- name: Create LVM Volume Group on /dev/sdb
+  community.general.lvg:
+    vg: docker-vg
+    pvs: /dev/sdb
+    pvresize: true
+
+- name: Create Docker Root Partition
+  community.general.lvol:
+    vg: docker-vg
+    lv: docker-root
+    size: 50%VG
+    shrink: false
+    resizefs: true
+
+- name: Create an ext4 filesystem on /dev/docker-vg/docker-root
+  community.general.filesystem:
+    fstype: ext4
+    dev: /dev/docker-vg/docker-root
+
+- name: Mount new Docker Root filesystem
+  ansible.posix.mount:
+    path: /var/lib/docker
+    src: /dev/docker-vg/docker-root
+    fstype: ext4
+    state: mounted
+
+- name: Create Docker Data Partition
+  community.general.lvol:
+    vg: docker-vg
+    lv: docker-data
+    size: 50%VG
+    shrink: false
+    resizefs: true
+
+- name: Create an ext4 filesystem on /dev/docker-vg/docker-data
+  community.general.filesystem:
+    fstype: ext4
+    dev: /dev/docker-vg/docker-data
+
+- name: Mount new Docker Data filesystem
+  ansible.posix.mount:
+    path: /opt/docker
+    src: /dev/docker-vg/docker-data
+    fstype: ext4
+    state: mounted
+
+- name: Install aptitude
+  ansible.builtin.apt:
+    name: aptitude
+    state: latest
+    update_cache: false
+  retries: 3
+  delay: 5
+
+- name: Install required system packages
+  ansible.builtin.apt:
+    pkg:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - software-properties-common
+      - lsb-release
+      - python3-pip
+      - virtualenv
+      - python3-setuptools
+      - uidmap
+    state: latest
+    update_cache: false
+  retries: 3
+  delay: 5
+
+- name: Create Docker folder
+  ansible.builtin.file:
+    path: /etc/docker
+    state: directory
+    mode: '0755'
+
+- name: Create Docker daemon file
+  copy:
+    dest: "/etc/docker/daemon.json"
+    owner: root
+    content: |
+      {
+        "default-address-pools":
+        [
+          {"base":"10.10.0.0/16","size":28}
+        ],
+        "icc": false,
+        "userns-remap": "default",
+        "userland-proxy": false,
+        "no-new-privileges": true,
+        "live-restore": true,
+        "log-level": "info",
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "20m",
+          "max-file": "5",
+          "compress": "true"
+        }
+      }
+  notify: restart docker
+
+- name: Remove Legacy Docker apt Repository
+  # ansible.builtin.apt_repository, with no explicit `filename:`, auto-names
+  # the file from the repo url - for this repo string that's always
+  # download_docker_com_linux_ubuntu.list, regardless of ubuntu_release.
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/download_docker_com_linux_ubuntu.list
+    state: absent
+
+- name: Remove Legacy Docker apt Keyring
+  ansible.builtin.file:
+    path: /etc/apt/keyrings/docker.asc
+    state: absent
+
+- name: Add Docker Repository
+  ansible.builtin.deb822_repository:
+    name: docker
+    types: deb
+    uris: https://download.docker.com/linux/ubuntu
+    suites: "{{ ubuntu_release }}"
+    components: stable
+    architectures: amd64
+    signed_by: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+
+- name: Install docker-ce
+  ansible.builtin.apt:
+    name: docker-ce
+    state: latest
+    update_cache: false
+  retries: 3
+  delay: 5
+
+- name: Install docker compose
+  ansible.builtin.apt:
+    name: docker-compose-plugin
+    state: latest
+    update_cache: false
+  retries: 3
+  delay: 5
+
+- name: Install Docker Module for Python
+  ansible.builtin.apt:
+    name: python3-docker
+    state: latest
+    update_cache: false
+  retries: 3
+  delay: 5
+
+- name: Enable Docker content trust
+  ansible.builtin.lineinfile:
+    path: /etc/environment
+    regexp: '^DOCKER_CONTENT_TRUST='
+    line: DOCKER_CONTENT_TRUST=1
+  notify: restart docker
+
+- name: Enable IP forwarding
+  ansible.posix.sysctl:
+    name: net.ipv4.conf.all.forwarding
+    value: '1'
+    state: present
+
+- name: Enable and start Docker service
+  ansible.builtin.systemd:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Add Docker group to {{ admin_name }} user
+  ansible.builtin.user:
+    name: '{{ admin_name }}'
+    groups: docker
+    append: true
+
+- name: Add Docker group to {{ client_account }} user
+  ansible.builtin.user:
+    name: '{{ client_account }}'
+    groups: docker
+    append: true
+  when: 
+    - users_client_setup|bool

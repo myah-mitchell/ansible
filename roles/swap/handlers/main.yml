@@ -1,0 +1,4 @@
+---
+- name: enable swap
+  ansible.builtin.command:
+    cmd: swapon -a

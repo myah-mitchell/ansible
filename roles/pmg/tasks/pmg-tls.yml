@@ -1,0 +1,114 @@
+---
+- block: 
+  - name: Check for Existing PMG OpenSSL private key
+    ansible.builtin.stat:
+      path: /etc/ssl/private/{{ serverHostname|lower }}-pmg-ssl.key
+    register: pmg_tls_key
+  
+  - name: Generate a PMG OpenSSL private Key (4096 bits, RSA)
+    become: false
+    delegate_to: localhost
+    community.crypto.openssl_privatekey:
+      #path: /etc/ssl/private/{{ serverHostname|lower }}-pmg-ssl.key
+      path: /tmp/{{ serverHostname|lower }}-pmg-ssl.key
+    when: not pmg_tls_key.stat.exists
+  
+  - name: Install a PMG OpenSSL private Key
+    ansible.builtin.copy:
+      src: /tmp/{{ serverHostname|lower }}-pmg-ssl.key
+      dest: /etc/ssl/private/{{ serverHostname|lower }}-pmg-ssl.key
+      owner: root
+      group: root
+      mode: '0500'
+    when: not pmg_tls_key.stat.exists
+  
+  - name: Create SSL CSR Folder
+    ansible.builtin.file: 
+      path: /etc/ssl/csr
+      state: directory 
+      mode: "0755" 
+      owner: "root"
+      group: "root"
+  
+  - name: Generate a PMG OpenSSL Certificate Signing Request
+    become: false
+    delegate_to: localhost
+    community.crypto.openssl_csr:
+      path: /tmp/{{ serverHostname|lower }}-pmg-ssl.csr
+      privatekey_path: /tmp/{{ serverHostname|lower }}-pmg-ssl.key
+      country_name: US
+      organization_name: "{{ short_name }}"
+      email_address: "{{ admin_list }}"
+      common_name: "{{ server_fqdn }}"
+      key_usage:
+        - nonRepudiation
+        - digitalSignature
+        - keyEncipherment
+      extended_key_usage:
+        - clientAuth
+        - serverAuth
+      subject_alt_name: "DNS:{{ server_fqdn }},DNS:{{ serverHostname|lower }}.{{ domain_name|lower }},DNS:{{ serverHostname|lower }},DNS:pmg.{{ location_domain_name }},DNS:pmg.{{ domain_name }},DNS:pmg,IP:{{ ansible_facts.default_ipv4.address }}"
+    register: pmgCSR
+    when: not pmg_tls_key.stat.exists
+  
+  - name: Install a PMG OpenSSL Certificate Signing Requst
+    ansible.builtin.copy:
+      src: /tmp/{{ serverHostname|lower }}-pmg-ssl.csr
+      dest: /etc/ssl/csr/{{ serverHostname|lower }}-pmg-ssl.csr
+      owner: root
+      group: root
+      mode: '0500'
+    when: not pmg_tls_key.stat.exists
+  
+  - name: Remove Local Copies of PMG OpenSSL Certificate
+    become: false
+    delegate_to: localhost
+    ansible.builtin.file:
+      path: /tmp/{{ serverHostname|lower }}-pmg-ssl.csr
+      state: absent
+  
+  - name: Remove Local Copies of PMG OpenSSL Certificate
+    become: false
+    delegate_to: localhost
+    ansible.builtin.file:
+      path: /tmp/{{ serverHostname|lower }}-pmg-ssl.key
+      state: absent
+  
+  #- name: "Sign PMG OpenSSL Certificate"
+  #  ansible.builtin.command: 
+  #    cmd: "make {{ pmgCSR.diff.after.public_key }}"
+  #  delegate_to: ca_server
+  #  register: pmgCERT
+  
+  - name: Check for Existing PMG OpenSSL Cert
+    ansible.builtin.stat:
+      path: /etc/ssl/{{ serverHostname|lower }}-pmg-ssl.pem
+    register: pmg_tls_pem
+
+  - name: Install PMG Signed Cert
+    ansible.builtin.copy:
+      src: /etc/ssl/{{ serverHostname|lower }}-pmg-ssl.pem
+      dest: /etc/pmg/pmg-tls.pem
+      owner: root
+      group: backup
+      mode: '0640'
+      remote_src: true
+    when: pmg_tls_pem.stat.exists
+    notify:
+      - pmgproxy_restart
+      - nginx_reload
+  
+  - name: Install PMG TLS Key
+    ansible.builtin.copy:
+      src: /etc/ssl/private/{{ serverHostname|lower }}-pmg-ssl.key
+      dest: /etc/pmg/pmg-tls.key
+      owner: root
+      group: backup
+      mode: '0640'
+      remote_src: true
+    when: pmg_tls_pem.stat.exists
+    notify: 
+      - pmgproxy_restart
+      - nginx_reload
+  tags: 
+    - pmg-tls

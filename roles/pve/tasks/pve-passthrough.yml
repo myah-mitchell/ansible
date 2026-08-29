@@ -1,0 +1,43 @@
+---
+- block:
+  - name: Enable Intel IOMMU (I/O Memory Management Unit) in Grub for PCI(e) Passthrough
+    lineinfile:
+      dest: /etc/default/grub
+      regexp: "^GRUB_CMDLINE_LINUX=.*$"
+      line: 'GRUB_CMDLINE_LINUX="intel_iommu=on iommu=pt"'
+      state: present
+    notify: update-grub
+
+  - name: Enable Intel IOMMU (I/O Memory Management Unit) in UEFI for PCI(e) Passthrough
+    lineinfile:
+      dest: /etc/kernel/cmdline
+      regexp: "^root=ZFS=rpool/ROOT/pve-1 boot=zfs"
+      line: 'root=ZFS=rpool/ROOT/pve-1 boot=zfs intel_iommu=on iommu=pt'
+      state: present
+    notify: proxmox-boot-tool
+
+  - name: Enable VFIO (Virtual Function I/O) Kernal Modules for PCI(e) Passthrough
+    ansible.builtin.copy:
+      src: files/modules
+      dest: /etc/modules
+      owner: root
+      group: root
+      mode: 0644
+    notify: update-initramfs
+
+  - name: Create Empty File for Unsafe Interrupts for PCI(e) Passthrough config
+    file:
+      path: /etc/modprobe.d/iommu_unsafe_interrupts.conf
+      state: touch
+      mode: u+rw,g-wx,o-rwx
+      modification_time: preserve
+      access_time: preserve
+
+#  - name: Enable Unsafe Interrupts for PCI(e) Passthrough
+#    lineinfile:
+#      dest: /etc/modprobe.d/iommu_unsafe_interrupts.conf
+#      line: 'options vfio_iommu_type1 allow_unsafe_interrupts=1'
+#      state: present
+  when: pve_passthrough
+  tags:
+    - pve-passthrough

@@ -1,0 +1,43 @@
+---
+### Profile Setup
+- name: Install system bash.bashrc file
+  ansible.builtin.copy:
+    src: files/bash.bashrc
+    dest: /etc/bash.bashrc
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Create skel files
+  ansible.builtin.copy:
+    src: files/skel/
+    dest: /etc/skel/
+    owner: root
+    group: root
+    mode: '0644'
+    directory_mode: '0755'
+      
+### Sudo Setup
+- name: Ensure sudo group is present
+  group:
+    name: sudo
+    state: present
+
+- name: Ensure sudo group has sudo privileges
+  lineinfile:
+    dest: /etc/sudoers
+    state: present
+    regexp: "^%sudo"
+    line: "%sudo ALL=(ALL:ALL) ALL"
+    validate: "/usr/sbin/visudo -cf %s"
+
+### Session Cleanup
+# Leaves a user's processes running after their last session ends, so
+# detached tmux/screen sessions and background jobs survive disconnect.
+- name: Don't kill a user's processes when their last session ends
+  ansible.builtin.lineinfile:
+    dest: /etc/systemd/logind.conf
+    state: present
+    regexp: "^#?KillUserProcesses="
+    line: "KillUserProcesses=no"
+  notify: restart systemd-logind

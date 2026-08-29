@@ -1,0 +1,29 @@
+---
+- name: Include nginx Setup Tasks
+  ansible.builtin.include_tasks: nginx.yml
+  args:
+    apply:
+      become: true
+  when: NGINX|bool
+
+- name: Include nginx PVE Proxy Setup Tasks
+  ansible.builtin.include_tasks: nginx-pve.yml
+  args:
+    apply:
+      become: true
+  when: NGINX|bool and PVE
+
+- name: Include nginx PBS Proxy Setup Tasks
+  ansible.builtin.include_tasks: nginx-pbs.yml
+  args:
+    apply:
+      become: true
+  when: NGINX|bool and PBS
+
+
+- name: Include nginx PMG Proxy Setup Tasks
+  ansible.builtin.include_tasks: nginx-pmg.yml
+  args:
+    apply:
+      become: true
+  when: NGINX|bool and PMG

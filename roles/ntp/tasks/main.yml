@@ -1,0 +1,14 @@
+---
+- name: Include NTP (timesyncd) Setup Tasks
+  ansible.builtin.include_tasks: timesyncd.yml
+  args:
+    apply:
+      become: true
+  when: NTP|bool and ntp_service == "timesyncd"
+
+- name: Include NTP (chrony) Setup Tasks
+  ansible.builtin.include_tasks: chrony.yml
+  args:
+    apply:
+      become: true
+  when: NTP|bool and ntp_service == "chrony"

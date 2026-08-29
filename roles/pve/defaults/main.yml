@@ -1,0 +1,80 @@
+---
+PVE: false
+pve_group: "{{ target }}"
+pve_base_dir: "/etc/pve"
+
+# VMs stamped out from the cloud-init template built by this role (see
+# templates/cloudinit-vendor.yml.j2) clone the public ansible repo and, if a
+# token is set, this private overlay repo too. Empty by default: the
+# template then bootstraps with just the public repo's sanitized example
+# data. Set ansible_private_repo_token to a read-only PAT for it in a
+# private group_vars/all/private.yml, never here.
+ansible_private_repo_url: "https://github.com/{{ github_user }}/ansible-private"
+ansible_private_repo_token: ""
+pve_cluster_conf: "{{ pve_base_dir }}/corosync.conf"
+
+pve_cluster_clustername: "{{ short_name }}{{ '-' + location_abbr|upper if location_abbr else '' }}"
+pve_cluster_ha_groups: []
+#pve_cluster_ha_groups:
+#  - name: AllNodes
+#    comment: "Group with All Nodes"
+#    nodes: "{{ groups[target] | join(',') }}"
+#    nofailback: false
+#    restricted: false
+
+pve_cluster_hostname: ""
+pve_cluster_FQDN: ""
+pve_cluster_ngsa: false
+pve_cluster_routed: false
+pve_cluster_switched: false
+pve_enterprise_repo: false
+pve_passthrough: true
+pve_interface_names: []
+#pve_interface_names:
+#  coro0: "eno1"
+#  coro1: "eno2"
+#  ceph:
+#    primary: "eno5np0"
+#    secondary: "eno6np1"
+#  mgmt:
+#    primary: "ens1f1"
+#    secondary: "ens1f0"
+pve_interfaces:
+  mgmt:
+    ip: ""
+    cidr: ""
+    gw: ""
+
+pve_ceph_enabled: false
+pve_ceph_network: "{{ (pve_interfaces['ceph']['ip'] +'/'+ pve_interfaces['ceph']['cidr']) | ansible.utils.ipaddr('0') }}"
+pve_ceph_nodes: "{{ target }}"
+pve_ceph_mon_group: "{{ target }}"
+pve_ceph_mgr_group: "{{ target }}"
+pve_ceph_mds_group: "{{ target }}"
+pve_ceph_osds: []
+#pve_ceph_osds:
+#  - device: /dev/nvme0n1
+#  - device: /dev/nvme1n1
+pve_ceph_pools: []
+#pve_ceph_pools:
+#  - name: VM-NVMe
+#    pgs: 128
+#    rule: replicated_rule
+#    application: rbd
+#    autoscale_mode: "on"
+#    storage: true
+#    size: 3
+#    min_size: 2
+#    size_ratio: 80
+pve_ceph_fs: []
+#pve_ceph_fs:
+#  - name: FS-NVMe
+#    pgs: 8
+#    rule: replicated_rule
+#    storage: true
+#    mountpoint: /mnt/pve/FS-NVMe
+
+pve_ceph_crush_rules: []
+#pve_ceph_crush_rules:
+#  - name: replicated_rule
+#    type: host

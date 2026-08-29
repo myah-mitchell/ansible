@@ -1,0 +1,42 @@
+---
+#
+- name: Update GRUB Timeout to 2
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: "^GRUB_TIMEOUT=.*$"
+    line: "GRUB_TIMEOUT=2"
+    state: present
+  notify: grub_update
+
+
+- name: Remove GRUB Timeout Style
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: "^GRUB_TIMEOUT_STYLE=.*$"
+    line: ""
+    state: present
+  notify: grub_update
+
+- name: Update GRUB Command to Enable Serial
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: "^GRUB_CMDLINE_LINUX=.*$"
+    line: 'GRUB_CMDLINE_LINUX="console=tty1 console=ttyS0,115200"'
+    state: present
+  notify: grub_update
+
+- name: Update GRUB Terminal to Enable Serial
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: "^GRUB_TERMINAL=.*$"
+    line: 'GRUB_TERMINAL="console serial"'
+    state: present
+  notify: grub_update
+
+- name: Update GRUB Serial Command to set Serial Speed to 115200
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: "^GRUB_SERIAL_COMMAND=.*$"
+    line: 'GRUB_SERIAL_COMMAND="serial --speed=115200"'
+    state: present
+  notify: grub_update

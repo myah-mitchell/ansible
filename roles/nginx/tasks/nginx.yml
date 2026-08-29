@@ -1,0 +1,33 @@
+---
+- name: Install Nginx
+  apt:
+    name: nginx
+    state: present
+    force: yes
+    update_cache: false
+  retries: 3
+  delay: 5
+
+- name: Symlink default site
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/default
+    dest: /etc/nginx/sites-enabled/default
+    state: link
+  notify: reload nginx
+
+- name: Create SSL CSR Folder
+  ansible.builtin.file: 
+    path: /etc/ssl/csr
+    state: directory 
+    mode: "0755" 
+    owner: "root"
+    group: "root"
+
+# Allow Nginx. (Note that as ufw manages its own state, simply removing
+# a rule=allow task can leave those ports exposed. Either use delete=true
+# or a separate state=reset task)
+- name: Enable Nginx UFW Firewall Policy
+  community.general.ufw:
+    rule: allow
+    name: "Nginx Full"
+  when: firewall_service == "ufw"

@@ -1,0 +1,71 @@
+---
+- name: Include Proxmox Repo Signing Key
+  ansible.builtin.include_tasks: proxmox-repo-key.yml
+
+- name: Include Legacy PVE/Ceph apt Entry Cleanup
+  ansible.builtin.include_tasks: pve-legacy-cleanup.yml
+
+- name: Remove Enterprise PVE (Proxmox) Repo
+  ansible.builtin.deb822_repository:
+    name: pve-enterprise
+    state: absent
+
+- name: Add No Subscription PVE (Proxmox) Repo
+  ansible.builtin.deb822_repository:
+    name: pve-no-subscription
+    types: deb
+    uris: http://download.proxmox.com/debian/pve
+    suites: "{{ ansible_facts.distribution_release }}"
+    components: pve-no-subscription
+    signed_by: /usr/share/keyrings/proxmox-archive-keyring.gpg
+    state: present
+
+- name: Remove Enterprise Ceph Repo
+  ansible.builtin.deb822_repository:
+    name: ceph-enterprise
+    state: absent
+
+- name: Add No Subscription Ceph Repo
+  ansible.builtin.deb822_repository:
+    name: ceph-no-subscription
+    types: deb
+    uris: "http://download.proxmox.com/debian/ceph-{{ pve_ceph_release }}"
+    suites: "{{ ansible_facts.distribution_release }}"
+    components: no-subscription
+    signed_by: /usr/share/keyrings/proxmox-archive-keyring.gpg
+    state: present
+
+- name: Remove Default Debian sources.list
+  ansible.builtin.file:
+    path: /etc/apt/sources.list
+    state: absent
+
+# The old release/updates/security entries all lived in this one shared
+# "debian" sources.list.d filename - remove it outright before adding the
+# new deb822 entries below.
+- name: Remove Legacy Debian sources.list.d Entry
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/debian.list
+    state: absent
+
+- name: Configure Debian Repo (release + updates, with non-free)
+  ansible.builtin.deb822_repository:
+    name: debian
+    types: deb
+    uris: http://ftp.us.debian.org/debian
+    suites:
+      - "{{ ansible_facts.distribution_release }}"
+      - "{{ ansible_facts.distribution_release }}-updates"
+    components: main contrib non-free non-free-firmware
+    signed_by: /usr/share/keyrings/debian-archive-keyring.gpg
+    state: present
+
+- name: Configure Debian Security Repo (with non-free)
+  ansible.builtin.deb822_repository:
+    name: debian-security
+    types: deb
+    uris: http://security.debian.org/debian-security
+    suites: "{{ ansible_facts.distribution_release }}-security"
+    components: main contrib non-free non-free-firmware
+    signed_by: /usr/share/keyrings/debian-archive-keyring.gpg
+    state: present

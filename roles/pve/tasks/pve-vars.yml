@@ -1,0 +1,38 @@
+---
+- name: "Setting Var: pve_cluster_hostname={{ abbr_name|lower }}{{ location_abbr|lower if location_abbr else '' }}vh"
+  ansible.builtin.set_fact:
+    pve_cluster_hostname: "{{ abbr_name|lower }}{{ location_abbr|lower if location_abbr else '' }}vh"
+  when: 
+    - pve_cluster_hostname | length == 0
+    - groups[pve_group] | length  > 1
+    - not pve_cluster_ngsa 
+
+- name: "Setting Var: pve_cluster_FQDN={{ pve_cluster_hostname|lower }}.{{ location_domain_name|lower }}"
+  ansible.builtin.set_fact:
+    pve_cluster_FQDN: "{{ pve_cluster_hostname|lower }}.{{ location_domain_name|lower }}"
+  when: 
+    - pve_cluster_FQDN | length == 0
+    - groups[pve_group] | length  > 1
+
+- block:
+  - name: "Setting Vars: pve_interfaces['mgmt']['ip']"
+    ansible.utils.update_fact:
+      updates:
+        - path: pve_interfaces['mgmt']['ip']
+          #value: "{{ ansible_facts.default_ipv4.address | regex_replace('[0-9]{1,3}$','11') }}"
+          value: "{{ ansible_facts.default_ipv4.address }}"
+        - path: pve_interfaces['mgmt']['cidr']
+          value: "{{ ( ansible_facts.default_ipv4.address + '/' + ansible_facts.default_ipv4.netmask ) | ansible.utils.ipaddr('host') | ansible.utils.ipaddr('prefix') }}"
+        - path: pve_interfaces['mgmt']['gw']
+          value: "{{ ansible_facts.default_ipv4.gateway }}"
+        - path: pve_interfaces['mgmt']['device']
+          value: "{{ ansible_facts.default_ipv4.interface }}"
+    register: updated
+    changed_when: updated.failed
+
+  - name: Saving Dictionary
+    set_fact:
+      pve_interfaces: "{{ updated.pve_interfaces }}"
+  when: 
+    - pve_interfaces['mgmt']['ip'] | length == 0
+

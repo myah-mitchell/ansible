@@ -1,0 +1,8 @@
+---
+- name: Include Fail2Ban Setup Tasks
+  ansible.builtin.include_tasks: fail2ban.yml
+  args:
+    apply:
+      become: true
+  when: FAIL2BAN|bool
+

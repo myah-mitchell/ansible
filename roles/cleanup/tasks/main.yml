@@ -1,0 +1,13 @@
+---
+### Package Management
+- name: Remove Unused Packages
+  ansible.builtin.apt:
+    name:
+      - nano
+    state: absent
+    purge: true
+
+- name: Auto Clean and Remove
+  ansible.builtin.apt:
+    autoclean: true
+    autoremove: true

@@ -1,0 +1,10 @@
+---
+- name: Install QEMU Guest
+  ansible.builtin.apt:
+    name:
+      - qemu-guest-agent
+    state: present
+    update_cache: false
+  retries: 3
+  delay: 5
+  notify: qemu_restart
