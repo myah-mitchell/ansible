@@ -130,7 +130,9 @@
   ansible.builtin.apt:
     name: docker-ce
     state: latest
-    update_cache: false
+    # deb822_repository (unlike apt_repository) never refreshes the apt
+    # cache itself, so this must update it to pick up the repo just added.
+    update_cache: true
   retries: 3
   delay: 5
 
