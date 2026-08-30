@@ -38,6 +38,7 @@
       - ncdu      # Pretty DU
       - multitail # Tail all the files
       - zsh       # Login shell which replaces bash
+      - figlet    # Needed by the ssh role's legal banner ASCII art task
     state: present
     update_cache: yes
   retries: 3
