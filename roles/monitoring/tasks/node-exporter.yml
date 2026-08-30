@@ -62,7 +62,7 @@
     organization_name: "{{ node_exporter_tls_org }}"
     common_name: node-exporter
     subject_alt_name:
-      - "DNS:{{ ansible_fqdn }}"
+      - "DNS:{{ ansible_facts.fqdn }}"
     owner: node_exporter
     group: node_exporter
     mode: '0644'
