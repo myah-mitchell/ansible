@@ -94,6 +94,13 @@
     group: docker
     mode: '0700'
 
+- name: Ensure komodo remote_tmp directory exists with correct permissions
+  ansible.builtin.file:
+    path: /tmp/.ansible-komodo/tmp
+    state: directory
+    owner: komodo
+    mode: '0700'
+
 - name: Download Komodo periphery setup script
   ansible.builtin.get_url:
     url: https://raw.githubusercontent.com/moghtech/komodo/main/scripts/setup-periphery.py
