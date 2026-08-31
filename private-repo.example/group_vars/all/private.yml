@@ -15,10 +15,15 @@ ansible_ssh_public_keys: []
 # the end-user login (client_account) should have a different key than admin:
 # client_ssh_public_keys: []
 
+# komodo_core_address: Core's real address, e.g. "https://<km01-ip>:9120"
+# during bootstrap (DNS/Traefik don't exist yet for most of the fleet), or
+# its real hostname once they do.
+komodo_core_address: ""
+
 # Core's own public key - not secret, safe to commit for real once known.
 # Extract it from km01's running Core and commit the real value here - see
 # docs/komodo-bootstrap.md in docker-stacks.
-# komodo_core_public_key: ""
+komodo_core_public_key: ""
 
 # CA certs to trust on every host, as a list of {name, content}. Empty here
 # — no CAs are installed. See roles/certificates/tasks/certificates.yml.
