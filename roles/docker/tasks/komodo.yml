@@ -132,6 +132,53 @@
   become: true
   become_user: komodo
 
+# setup-periphery.py only writes periphery.config.toml the first time it
+# runs (it early-returns if the file already exists, and the "creates:"
+# guard above skips even invoking it after that) - so core_address,
+# connect_as, core_public_keys, and especially onboarding_key can never be
+# updated by re-running the installer once cloud-init's first (keyless)
+# pass has already created the file. Write them here instead, every run,
+# the same way root_directory already is above - this is what actually
+# lets a later "give it an onboarding key" re-run take effect.
+- name: Configure Komodo core address
+  ansible.builtin.lineinfile:
+    path: /home/komodo/.config/komodo/periphery.config.toml
+    regexp: '^#?\s*core_address\s*='
+    line: "core_address = \"{{ komodo_core_address }}\""
+  become: true
+  become_user: komodo
+
+- name: Configure Komodo connect_as
+  ansible.builtin.lineinfile:
+    path: /home/komodo/.config/komodo/periphery.config.toml
+    regexp: '^#?\s*connect_as\s*='
+    line: "connect_as = \"{{ komodo_connect_as }}\""
+  become: true
+  become_user: komodo
+
+- name: Configure Komodo core public key
+  ansible.builtin.lineinfile:
+    path: /home/komodo/.config/komodo/periphery.config.toml
+    regexp: '^#?\s*core_public_keys\s*='
+    line: "core_public_keys = \"{{ komodo_core_public_key }}\""
+  become: true
+  become_user: komodo
+  when: komodo_core_public_key | length > 0
+
+# Only touched when a fresh onboarding key is actually passed in on this
+# run (e.g. docs/ci01-bootstrap.md step 5) - leaves an already-onboarded
+# host's config alone otherwise, matching the installer's own
+# "not needed if connecting as Server that already exists" note.
+- name: Configure Komodo onboarding key
+  ansible.builtin.lineinfile:
+    path: /home/komodo/.config/komodo/periphery.config.toml
+    regexp: '^#?\s*onboarding_key\s*='
+    line: "onboarding_key = \"{{ komodo_onboarding_key }}\""
+  become: true
+  become_user: komodo
+  when: komodo_onboarding_key | length > 0
+  no_log: true
+
 - name: Enable Komodo periphery user service
   ansible.builtin.systemd:
     name: periphery.service
