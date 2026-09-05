@@ -33,7 +33,12 @@ komodo_core_public_key: ""
 komodo_onboarding_key: ""
 
 # The Server resource name/id this Periphery should connect as in Core.
-# Reuses the same short_name extra-var already passed on every provisioning
-# run, matching the <role><NN> Server-resource naming used throughout the
-# docker-stacks docs.
-komodo_connect_as: "{{ short_name }}"
+# Deliberately NOT "{{ short_name }}": that's the organization's short
+# name, constant fleet-wide (same value pve_cluster_clustername,
+# ssh_legal_banner_name, and every pve/pmg/pbs TLS cert's
+# organization_name already key off) - it was never meant to identify
+# one specific host. serverHostname is this repo's own established
+# answer to "this host's real name" (see roles/provision/tasks/main.yml,
+# and every pve/pmg/pbs TLS cert's subject_alt_name) - it falls back to
+# the live ansible_facts.hostname when no inventory host_var pins it.
+komodo_connect_as: "{{ serverHostname|lower }}"
