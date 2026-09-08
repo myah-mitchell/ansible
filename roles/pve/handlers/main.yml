@@ -25,12 +25,6 @@
   ansible.builtin.command:
     cmd: ifreload -a
 
-- name: frr_restart
-  service:
-    name: frr
-    state: restarted
-  throttle: 1
-
 - name: template_build
   ansible.builtin.command:
     cmd: /usr/local/bin/create-cloud-init-template.sh

@@ -8,6 +8,7 @@
 {{ hostvars[groups[pve_group][0]]['pve_interfaces']['mgmt']['ip'] }} {{ hostvars[groups[pve_group][0]]['serverHostname'] }}.{{ location_domain_name }} {{ hostvars[groups[pve_group][0]]['serverHostname'] }}
 {{ hostvars[groups[pve_group][1]]['pve_interfaces']['mgmt']['ip'] }} {{ hostvars[groups[pve_group][1]]['serverHostname'] }}.{{ location_domain_name }} {{ hostvars[groups[pve_group][1]]['serverHostname'] }} adjacent
 {% endif %}
+
 {% if inventory_hostname == groups[pve_group][1] %}
 {{ hostvars[groups[pve_group][0]]['pve_interfaces']['mgmt']['ip'] }} {{ hostvars[groups[pve_group][0]]['serverHostname'] }}.{{ location_domain_name }} {{ hostvars[groups[pve_group][0]]['serverHostname'] }} adjacent
 {{ hostvars[groups[pve_group][1]]['pve_interfaces']['mgmt']['ip'] }} {{ hostvars[groups[pve_group][1]]['serverHostname'] }}.{{ location_domain_name }} {{ hostvars[groups[pve_group][1]]['serverHostname'] }}
@@ -26,30 +27,6 @@
 {{ hostvars[groups[pve_group][2]]['pve_interfaces']['mgmt']['ip'] }} {{ hostvars[groups[pve_group][2]]['serverHostname'] }}.{{ location_domain_name }} {{ hostvars[groups[pve_group][2]]['serverHostname'] }}
 {{ hostvars[groups[pve_group][3]]['pve_interfaces']['mgmt']['ip'] }} {{ hostvars[groups[pve_group][3]]['serverHostname'] }}.{{ location_domain_name }} {{ hostvars[groups[pve_group][3]]['serverHostname'] }}
 
-{% endif %}
-{% if hostvars[groups[pve_group][0]]['pve_interfaces']['coro0']['ip'] is defined %}
-#corosync network hosts
-{{ hostvars[groups[pve_group][0]]['pve_interfaces']['coro0']['ip'] }} {{ hostvars[groups[pve_group][0]]['serverHostname'] }}-coro0.{{ location_domain_name }} {{ hostvars[groups[pve_group][0]]['serverHostname'] }}-coro0
-{{ hostvars[groups[pve_group][1]]['pve_interfaces']['coro0']['ip'] }} {{ hostvars[groups[pve_group][1]]['serverHostname'] }}-coro0.{{ location_domain_name }} {{ hostvars[groups[pve_group][1]]['serverHostname'] }}-coro0
-{{ hostvars[groups[pve_group][2]]['pve_interfaces']['coro0']['ip'] }} {{ hostvars[groups[pve_group][2]]['serverHostname'] }}-coro0.{{ location_domain_name }} {{ hostvars[groups[pve_group][2]]['serverHostname'] }}-coro0
-{{ hostvars[groups[pve_group][3]]['pve_interfaces']['coro0']['ip'] }} {{ hostvars[groups[pve_group][3]]['serverHostname'] }}-coro0.{{ location_domain_name }} {{ hostvars[groups[pve_group][3]]['serverHostname'] }}-coro0
-
-{% endif %}
-{% if hostvars[groups[pve_group][0]]['pve_interfaces']['coro1']['ip'] is defined %}
-{{ hostvars[groups[pve_group][0]]['pve_interfaces']['coro1']['ip'] }} {{ hostvars[groups[pve_group][0]]['serverHostname'] }}-coro1.{{ location_domain_name }} {{ hostvars[groups[pve_group][0]]['serverHostname'] }}-coro1
-{{ hostvars[groups[pve_group][1]]['pve_interfaces']['coro1']['ip'] }} {{ hostvars[groups[pve_group][1]]['serverHostname'] }}-coro1.{{ location_domain_name }} {{ hostvars[groups[pve_group][1]]['serverHostname'] }}-coro1
-{{ hostvars[groups[pve_group][2]]['pve_interfaces']['coro1']['ip'] }} {{ hostvars[groups[pve_group][2]]['serverHostname'] }}-coro1.{{ location_domain_name }} {{ hostvars[groups[pve_group][2]]['serverHostname'] }}-coro1
-{{ hostvars[groups[pve_group][3]]['pve_interfaces']['coro1']['ip'] }} {{ hostvars[groups[pve_group][3]]['serverHostname'] }}-coro1.{{ location_domain_name }} {{ hostvars[groups[pve_group][3]]['serverHostname'] }}-coro1
-
-{% endif %}
-{% if pve_ceph_enabled %}
-#ceph network hosts
-{{ hostvars[groups[pve_group][0]]['pve_interfaces']['ceph']['ip'] }} {{ hostvars[groups[pve_group][0]]['serverHostname'] }}-ceph.{{ location_domain_name }} {{ hostvars[groups[pve_group][0]]['serverHostname'] }}-ceph
-{{ hostvars[groups[pve_group][1]]['pve_interfaces']['ceph']['ip'] }} {{ hostvars[groups[pve_group][1]]['serverHostname'] }}-ceph.{{ location_domain_name }} {{ hostvars[groups[pve_group][1]]['serverHostname'] }}-ceph
-{{ hostvars[groups[pve_group][2]]['pve_interfaces']['ceph']['ip'] }} {{ hostvars[groups[pve_group][2]]['serverHostname'] }}-ceph.{{ location_domain_name }} {{ hostvars[groups[pve_group][2]]['serverHostname'] }}-ceph
-{{ hostvars[groups[pve_group][3]]['pve_interfaces']['ceph']['ip'] }} {{ hostvars[groups[pve_group][3]]['serverHostname'] }}-ceph.{{ location_domain_name }} {{ hostvars[groups[pve_group][3]]['serverHostname'] }}-ceph
-
-{% endif %}
 # The following lines are desirable for IPv6 capable hosts
 
 ::1     ip6-localhost ip6-loopback

@@ -1,18 +1,4 @@
 ---
-- name: "Setting Var: pve_cluster_hostname={{ abbr_name|lower }}{{ location_abbr|lower if location_abbr else '' }}vh"
-  ansible.builtin.set_fact:
-    pve_cluster_hostname: "{{ abbr_name|lower }}{{ location_abbr|lower if location_abbr else '' }}vh"
-  when: 
-    - pve_cluster_hostname | length == 0
-    - groups[pve_group] | length  > 1
-    - not pve_cluster_ngsa 
-
-- name: "Setting Var: pve_cluster_FQDN={{ pve_cluster_hostname|lower }}.{{ location_domain_name|lower }}"
-  ansible.builtin.set_fact:
-    pve_cluster_FQDN: "{{ pve_cluster_hostname|lower }}.{{ location_domain_name|lower }}"
-  when: 
-    - pve_cluster_FQDN | length == 0
-    - groups[pve_group] | length  > 1
 
 - block:
   - name: "Setting Vars: pve_interfaces['mgmt']['ip']"
