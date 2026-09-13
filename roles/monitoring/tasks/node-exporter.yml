@@ -144,25 +144,58 @@
 # bcrypt salts every hash, so hashing on every run would rewrite config.yml and
 # restart node_exporter each time. Hash only when the password actually changed,
 # and keep the result so later runs can write the same config.
+#
+# The hashing happens here on the target rather than through password_hash on the
+# controller. That filter needs passlib, and the controller is Semaphore's own
+# container, which has neither passlib nor a bcrypt backend and is a stock image
+# with no build step to add one. htpasswd is a two-hundred-kilobyte package on a
+# host this role already manages, and it keeps working across Semaphore upgrades.
+- name: Install htpasswd, which hashes this host's node_exporter password
+  ansible.builtin.apt:
+    name: apache2-utils
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
 - name: Check for a stored node_exporter password hash
   ansible.builtin.stat:
     path: /etc/node-exporter/password.bcrypt
   register: node_exporter_hash_file
 
+# -i reads the password from stdin so it never appears in the process list, -n
+# prints the result instead of writing a file, and -B selects bcrypt. htpasswd
+# prints username:hash, and the username here is empty, so everything ahead of
+# the hash's own leading $ is dropped.
 - name: Hash this host's node_exporter password
-  ansible.builtin.set_fact:
-    _node_exporter_password_hash: "{{ _node_exporter_password | password_hash('bcrypt') }}"
+  ansible.builtin.command:
+    cmd: htpasswd -inBC 12 ""
+    stdin: "{{ _node_exporter_password }}"
+  register: node_exporter_hash_generated
   when: node_exporter_password_stored.changed or not node_exporter_hash_file.stat.exists
+  changed_when: false
   no_log: true
+
+# A malformed hash here would be written to config.yml and lock out every scrape
+# with a 401 that looks like a wrong password rather than a broken hash, so it is
+# worth failing on the spot instead.
+- name: Check the generated hash is bcrypt
+  ansible.builtin.assert:
+    that:
+      - _node_exporter_generated_hash is match('^\$2[aby]\$[0-9]{2}\$.{53}$')
+    fail_msg: htpasswd did not return a bcrypt hash. Check that apache2-utils is installed and supports -B.
+    quiet: true
+  vars:
+    _node_exporter_generated_hash: "{{ node_exporter_hash_generated.stdout | default('') | trim | regex_replace('^[^$]*', '') }}"
+  when: not node_exporter_hash_generated is skipped
 
 - name: Store this host's node_exporter password hash
   ansible.builtin.copy:
-    content: "{{ _node_exporter_password_hash }}"
+    content: "{{ node_exporter_hash_generated.stdout | trim | regex_replace('^[^$]*', '') }}"
     dest: /etc/node-exporter/password.bcrypt
     owner: node_exporter
     group: node_exporter
     mode: '0600'
-  when: _node_exporter_password_hash is defined
+  when: not node_exporter_hash_generated is skipped
   no_log: true
 
 - name: Read this host's stored node_exporter password hash
@@ -182,7 +215,7 @@
         cert_file: /etc/node-exporter/node_exporter.crt
         key_file: /etc/node-exporter/node_exporter.key
       basic_auth_users:
-        node-exporter-user: "{{ node_exporter_hash_stored.content | b64decode }}"
+        node-exporter-user: "{{ node_exporter_hash_stored.content | b64decode | trim }}"
   notify: restart node_exporter
   no_log: true
 
