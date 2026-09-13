@@ -1,15 +1,37 @@
 ---
+# node_exporter ships as a single static binary, so the version already on disk
+# is the only thing that decides whether a download is needed. Without this the
+# tarball is fetched and extracted on every run, then deleted again by the
+# cleanup below, so no run ever reports changed=0.
+- name: Check which Node Exporter version is installed
+  ansible.builtin.command:
+    cmd: /usr/local/bin/node_exporter --version
+  register: node_exporter_installed
+  failed_when: false
+  changed_when: false
+
+# Different releases have printed the version banner to stdout and to stderr, so
+# both are searched. An unreadable or missing binary leaves both empty and the
+# install goes ahead, which is the safe direction to fail in.
+- name: Decide whether Node Exporter needs installing
+  ansible.builtin.set_fact:
+    _node_exporter_needs_install: >-
+      {{ not ((node_exporter_installed.stdout | default('')) ~ (node_exporter_installed.stderr | default('')))
+         is search('version ' ~ (node_exporter_version | regex_escape) ~ ' ') }}
+
 - name: Download Node Exporter
   ansible.builtin.get_url:
     url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-{{ node_exporter_arch }}.tar.gz"
     dest: "/tmp/node_exporter-{{ node_exporter_version }}.linux-{{ node_exporter_arch }}.tar.gz"
     mode: '0644'
+  when: _node_exporter_needs_install
 
 - name: Extract Node Exporter archive
   ansible.builtin.unarchive:
     src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-{{ node_exporter_arch }}.tar.gz"
     dest: /tmp
     remote_src: true
+  when: _node_exporter_needs_install
 
 - name: Copy Node Exporter binary to /usr/local/bin
   ansible.builtin.copy:
@@ -19,6 +41,7 @@
     group: root
     mode: '0755'
     remote_src: true
+  when: _node_exporter_needs_install
   notify: restart node_exporter
 
 - name: Remove Node Exporter download artifacts
@@ -28,14 +51,7 @@
   loop:
     - "/tmp/node_exporter-{{ node_exporter_version }}.linux-{{ node_exporter_arch }}.tar.gz"
     - "/tmp/node_exporter-{{ node_exporter_version }}.linux-{{ node_exporter_arch }}"
-
-- name: Create node-exporter config directory
-  ansible.builtin.file:
-    path: /etc/node-exporter
-    state: directory
-    owner: root
-    group: root
-    mode: '0775'
+  when: _node_exporter_needs_install
 
 - name: Create node_exporter system user
   ansible.builtin.user:
@@ -43,6 +59,17 @@
     system: true
     shell: /bin/false
     create_home: false
+
+# Created after the user exists so it can be owned correctly on the first pass.
+# Creating it as root and correcting the owner further down made both tasks
+# report changed on every run, each undoing the other.
+- name: Create node-exporter config directory
+  ansible.builtin.file:
+    path: /etc/node-exporter
+    state: directory
+    owner: node_exporter
+    group: node_exporter
+    mode: '0775'
 
 - name: Generate Node Exporter TLS private key
   community.crypto.openssl_privatekey:
@@ -77,14 +104,6 @@
     owner: node_exporter
     group: node_exporter
     mode: '0644'
-
-- name: Set ownership on node-exporter config directory
-  ansible.builtin.file:
-    path: /etc/node-exporter
-    state: directory
-    owner: node_exporter
-    group: node_exporter
-    mode: '0775'
 
 - name: Set restricted permissions on node-exporter private key
   ansible.builtin.file:
