@@ -78,15 +78,97 @@
     group: node_exporter
     mode: '0644'
 
-- name: Check if Node Exporter config exists
-  ansible.builtin.stat:
-    path: /etc/node-exporter/config.yml
-  register: node_exporter_config
+- name: Set ownership on node-exporter config directory
+  ansible.builtin.file:
+    path: /etc/node-exporter
+    state: directory
+    owner: node_exporter
+    group: node_exporter
+    mode: '0775'
 
-- name: Generate Node Exporter password hash
+- name: Set restricted permissions on node-exporter private key
+  ansible.builtin.file:
+    path: /etc/node-exporter/node_exporter.key
+    mode: '0400'
+
+# Each host gets its own basic-auth password. A host's vmagent only ever scrapes
+# that same host's node_exporter, over its own address, so the password never has
+# to match between hosts and there is nothing to share. Generating it here keeps
+# it off every inventory file and out of Komodo entirely.
+#
+# The plaintext is kept on the host so later runs reuse it rather than minting a
+# new one and restarting node_exporter every time.
+
+- name: Look for an existing node_exporter password on this host
+  ansible.builtin.slurp:
+    src: /etc/node-exporter/password
+  register: node_exporter_password_existing
+  failed_when: false
+  no_log: true
+
+- name: Decide this host's node_exporter password
   ansible.builtin.set_fact:
-    _node_exporter_password_hash: "{{ node_exporter_password | password_hash('bcrypt') }}"
-  when: not node_exporter_config.stat.exists
+    _node_exporter_password: >-
+      {{
+        node_exporter_password if node_exporter_password | length > 0
+        else (
+          node_exporter_password_existing.content | b64decode | trim
+          if node_exporter_password_existing.content is defined
+          else lookup('ansible.builtin.password', '/dev/null', length=40,
+                      chars=['ascii_letters', 'digits'])
+        )
+      }}
+  no_log: true
+
+- name: Store this host's node_exporter password
+  ansible.builtin.copy:
+    content: "{{ _node_exporter_password }}"
+    dest: /etc/node-exporter/password
+    owner: node_exporter
+    group: node_exporter
+    mode: '0600'
+  register: node_exporter_password_stored
+  no_log: true
+
+# The container reading this runs under Docker's remapped user namespace, so the
+# UID that owns the file is the host-side translation of the container's own.
+- name: Publish the node_exporter password for this host's vmagent
+  ansible.builtin.copy:
+    content: "{{ _node_exporter_password }}"
+    dest: /etc/node-exporter/scrape-password
+    owner: "{{ node_exporter_scrape_uid }}"
+    group: "{{ node_exporter_scrape_gid }}"
+    mode: '0400'
+  no_log: true
+
+# bcrypt salts every hash, so hashing on every run would rewrite config.yml and
+# restart node_exporter each time. Hash only when the password actually changed,
+# and keep the result so later runs can write the same config.
+- name: Check for a stored node_exporter password hash
+  ansible.builtin.stat:
+    path: /etc/node-exporter/password.bcrypt
+  register: node_exporter_hash_file
+
+- name: Hash this host's node_exporter password
+  ansible.builtin.set_fact:
+    _node_exporter_password_hash: "{{ _node_exporter_password | password_hash('bcrypt') }}"
+  when: node_exporter_password_stored.changed or not node_exporter_hash_file.stat.exists
+  no_log: true
+
+- name: Store this host's node_exporter password hash
+  ansible.builtin.copy:
+    content: "{{ _node_exporter_password_hash }}"
+    dest: /etc/node-exporter/password.bcrypt
+    owner: node_exporter
+    group: node_exporter
+    mode: '0600'
+  when: _node_exporter_password_hash is defined
+  no_log: true
+
+- name: Read this host's stored node_exporter password hash
+  ansible.builtin.slurp:
+    src: /etc/node-exporter/password.bcrypt
+  register: node_exporter_hash_stored
   no_log: true
 
 - name: Create Node Exporter config
@@ -100,22 +182,9 @@
         cert_file: /etc/node-exporter/node_exporter.crt
         key_file: /etc/node-exporter/node_exporter.key
       basic_auth_users:
-        node-exporter-user: "{{ _node_exporter_password_hash }}"
-  when: not node_exporter_config.stat.exists
+        node-exporter-user: "{{ node_exporter_hash_stored.content | b64decode }}"
   notify: restart node_exporter
   no_log: true
-
-- name: Set ownership on node-exporter config directory
-  ansible.builtin.file:
-    path: /etc/node-exporter
-    owner: node_exporter
-    group: node_exporter
-    recurse: true
-
-- name: Set restricted permissions on node-exporter private key
-  ansible.builtin.file:
-    path: /etc/node-exporter/node_exporter.key
-    mode: '0400'
 
 - name: Create Node Exporter systemd service
   ansible.builtin.copy:

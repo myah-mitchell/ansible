@@ -5,9 +5,18 @@ NODE_EXPORTER: false
 node_exporter_version: "1.10.2"
 node_exporter_arch: "amd64"
 
-# Password for node-exporter basic auth. Override in group_vars vault.
-# Ansible hashes it with bcrypt on first run and skips the config on subsequent runs.
-node_exporter_password: "CHANGEME"
+# Basic-auth password for this host's node_exporter. Left empty so the role
+# generates a random one per host on the first run and reuses it afterwards, which
+# means no two hosts share a password and none of them is written down anywhere
+# outside the host it belongs to. Set it, in group_vars or on the command line,
+# only to pin or rotate one host's password; the next run replaces the stored one
+# and rewrites the config.
+node_exporter_password: ""
+
+# Owner of the copy of the password that this host's vmagent container reads.
+# Docker runs with userns-remap, so the container's own UID 1000 is 101000 here.
+node_exporter_scrape_uid: 101000
+node_exporter_scrape_gid: 101000
 
 node_exporter_tls_country: "US"
 node_exporter_tls_state: "MyState"
