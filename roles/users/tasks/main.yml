@@ -6,6 +6,12 @@
       become: true
   when: USERS|bool
 
+- name: Include Server Password Hashing Tasks
+  ansible.builtin.include_tasks: password.yml
+  when:
+    - USERS|bool
+    - server_password | length > 0
+
 - name: Include Root User Setup Tasks
   ansible.builtin.include_tasks: user_root.yml
   args:

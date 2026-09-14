@@ -2,7 +2,7 @@
 - name: Set root user password
   ansible.builtin.user:
     name: "root"
-    password: "{{ server_password | password_hash('sha512') }}"
+    password: "{{ server_password_hash }}"
   when: server_password | length > 0
 
 - name: Add admin pub key to Root user

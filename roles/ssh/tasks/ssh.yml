@@ -8,12 +8,20 @@
       state: present
     notify: restart ssh
   
+  # Rendered on the target, not the controller. Under Semaphore the controller is
+  # a stock container with no figlet, and anything installed into it is lost on
+  # the next recreate. The packages role installs figlet as well, but installing
+  # it here keeps this role working when run on its own with --tags ssh.
+  - name: Install figlet for the Legal Banner
+    ansible.builtin.apt:
+      name: figlet
+      state: present
+      update_cache: true
+      cache_valid_time: 3600
+
   - name: Render Legal Banner Name as ASCII Art
     ansible.builtin.command:
       cmd: figlet -f big -w 100 "{{ ssh_legal_banner_name }}"
-    delegate_to: localhost
-    become: false
-    run_once: true
     changed_when: false
     check_mode: false
     register: _legal_ascii_art

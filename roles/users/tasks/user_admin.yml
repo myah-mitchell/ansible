@@ -13,7 +13,7 @@
 - name: Set {{ admin_name }} user password
   ansible.builtin.user:
     name: "{{ admin_name|lower }}"
-    password: "{{ server_password | password_hash('sha512') }}"
+    password: "{{ server_password_hash }}"
   when: server_password | length > 0
 
 - name: Ensure {{ admin_name }} has sudo privileges
