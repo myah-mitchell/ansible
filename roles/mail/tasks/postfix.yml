@@ -34,6 +34,18 @@
     state: present
   notify: restart postfix
 
+# Postfix here only sends the host's own mail (cron, unattended-upgrades), which
+# goes through the sendmail command and needs no listener. Docker hosts publish
+# port 25 from containers, such as core-infra's Postfix on ci01 and Stalwart on
+# mx01, so the host must not be listening on it too.
+- name: Disable Postfix SMTP Listener
+  lineinfile:
+    dest: /etc/postfix/main.cf
+    regexp: "^master_service_disable.*"
+    line: "master_service_disable = inet"
+    state: present
+  notify: restart postfix
+
 - name: Update Root Email
   lineinfile:
     dest: /etc/aliases
