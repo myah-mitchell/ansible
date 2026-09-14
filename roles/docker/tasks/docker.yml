@@ -171,6 +171,16 @@
     state: started
     enabled: true
 
+- name: Check for the {{ docker_proxy_network }} Docker network
+  ansible.builtin.command: docker network inspect {{ docker_proxy_network }}
+  register: docker_proxy_network_inspect
+  changed_when: false
+  failed_when: false
+
+- name: Create the {{ docker_proxy_network }} Docker network
+  ansible.builtin.command: docker network create {{ docker_proxy_network }}
+  when: docker_proxy_network_inspect.rc != 0
+
 - name: Add Docker group to {{ admin_name }} user
   ansible.builtin.user:
     name: '{{ admin_name }}'

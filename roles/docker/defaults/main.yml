@@ -2,6 +2,11 @@
 #### DOCKER role installs and configures docker
 DOCKER: false
 
+# Shared network every docker-stacks compose.yaml attaches to as external: true.
+# Compose never creates an external network, so it has to exist before a host's
+# first deploy. Must match GLOBAL_PROXY_NETWORK in Komodo.
+docker_proxy_network: proxy
+
 ubuntu_release: jammy
 container_count: 4
 default_container_name: docker
