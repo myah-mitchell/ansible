@@ -110,6 +110,9 @@
     - role: docker
       tags: docker
 
+    - role: stacks
+      tags: stacks
+
     - role: monitoring
       tags: monitoring
 

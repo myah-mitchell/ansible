@@ -1,0 +1,31 @@
+---
+#### STACKS role prepares a Docker host for the docker-stacks stacks it will run:
+#### the runtime folders, seeded config files, and firewall ports that each
+#### stack's containers list in their setup.yaml. It deploys nothing. Komodo
+#### still does that.
+
+# Stacks to prepare on this host, by folder name under stacks/ in docker-stacks.
+# Empty skips the role. Set it per host in the inventory, or pass it with -e as a
+# list or a comma-separated string.
+docker_stacks: []
+
+# {{ github_user }}/docker-stacks is public, so plain HTTPS with no credential.
+docker_stacks_repo_url: "https://github.com/{{ github_user }}/docker-stacks.git"
+docker_stacks_repo_version: "main"
+# Checked out once per play on the control node (Semaphore, or the host itself
+# under cloud-init), where the setup files are read and config files copied from.
+docker_stacks_local_checkout: "/tmp/ansible-docker-stacks-checkout"
+
+# Must match GLOBAL_DOCKER_VOLUMES and GLOBAL_DOCKER_LOGS in Komodo.
+docker_stacks_volumes_dir: "/opt/docker/volumes"
+docker_stacks_logs_dir: "/opt/docker/logs"
+
+# Owner of each stack's own logs and volumes folders. The group is the
+# containers' UID 1000 as seen from the host under userns-remap.
+docker_stacks_folder_owner: "{{ admin_name }}"
+docker_stacks_folder_group: 101000
+
+# CIDR that firewall rules marked `allow_from: internal` are scoped to. Required
+# once any listed stack has such a rule, and the role stops before changing
+# anything if it is empty.
+docker_stacks_internal_subnet: ""

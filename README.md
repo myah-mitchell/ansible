@@ -138,7 +138,7 @@ Change it to your own username/org and every clone URL in the roles follows.
 - `group_vars/all/vars.yml`: shared non-sensitive defaults meant to be
   edited directly in a fork (currently just `github_user`)
 - `roles/`: one role per concern (users, ssh, certificates, firewall, pve,
-  pbs, pmg, docker, monitoring, ...). `pve` also builds and refreshes the
+  pbs, pmg, docker, stacks, monitoring, ...). `pve` also builds and refreshes the
   Proxmox cloud-init VM template from its own `templates/cloudinit-vendor.yml.j2`
   and `templates/create-cloud-init-template.sh.j2`.
 - `private-repo.example/`: worked example of what a private overlay repo
