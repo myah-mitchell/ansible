@@ -2,8 +2,8 @@
 set -euo pipefail
 
 DISTRO="ubuntu"
-VERSION="26.04"
-RELEASE="resolute"
+VERSION="{{ pve_template_ubuntu_version }}"
+RELEASE="{{ pve_template_ubuntu_release }}"
 STORAGE_VM="{{ _pve_vm_storage }}"
 STORAGE_FS="{{ _pve_fs_storage }}"
 
@@ -31,8 +31,11 @@ build_template () {
         # Attach the disk to the vm using VirtIO SCSI
         qm set $VMID --scsihw virtio-scsi-single --scsi0 $STORAGE_VM:vm-$VMID-disk-0,discard=on,ssd=1,iothread=1
 
-        # Create data disk for the vm using VirtIO SCSI
-        qm set $VMID --scsihw virtio-scsi-single --scsi1 $STORAGE_VM:40,discard=on,ssd=1,iothread=1
+        # Create the Docker root disk (/var/lib/docker) using VirtIO SCSI. It
+        # holds only images and layers, so a rebuilt VM starts with a fresh one.
+        # The persistent volumes disk (scsi2) is not created here: it is added
+        # per VM with qm set, or moved in from the VM being replaced.
+        qm set $VMID --scsihw virtio-scsi-single --scsi1 $STORAGE_VM:{{ pve_template_docker_disk_size }},discard=on,ssd=1,iothread=1
 
         # Add CloudInit Drive
         qm set $VMID --ide2 $STORAGE_VM:cloudinit
@@ -47,7 +50,7 @@ build_template () {
         qm set $VMID --agent enabled=1
 
         # The initial disk is only 2GB, thus we make it larger
-        qm resize $VMID scsi0 20G
+        qm resize $VMID scsi0 {{ pve_template_root_disk_size }}G
 
         # Using a dhcp server on vmbr1 or use static IP
         qm set $VMID --ipconfig0 ip=dhcp

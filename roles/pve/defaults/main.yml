@@ -12,6 +12,21 @@ pve_base_dir: "/etc/pve"
 ansible_private_repo_url: "https://github.com/{{ github_user }}/ansible-private"
 ansible_private_repo_token: ""
 
+# The Ubuntu release the cloud-init template is built from. The template's
+# VMID, name, and tag all derive from the version, so moving the fleet to a new
+# release starts with these two lines. The new template is built next to the
+# old one, which stays in place and is no longer refreshed.
+pve_template_ubuntu_version: "26.04"
+pve_template_ubuntu_release: "resolute"
+
+# Disk sizes for the template, in GB. scsi0 is the OS disk and scsi1 becomes
+# /var/lib/docker. Neither holds anything worth keeping, so a rebuilt VM gets
+# fresh copies of both. A VM's persistent disk (scsi2, mounted at /srv/persist) is
+# deliberately not in the template. It is added per VM with qm set, sized for
+# that host, so a rebuilt VM can take the old one over rather than get a blank.
+pve_template_root_disk_size: 20
+pve_template_docker_disk_size: 40
+
 pve_enterprise_repo: false
 pve_passthrough: true
 pve_interface_names: []
