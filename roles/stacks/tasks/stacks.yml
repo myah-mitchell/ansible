@@ -4,6 +4,7 @@
     docker_stacks_list: >-
       {{ (docker_stacks.split(',') if docker_stacks is string else docker_stacks)
          | map('trim') | reject('equalto', '') | unique | list }}
+    docker_stacks_setup: []
 
 - name: Clone/update docker-stacks on the control node
   ansible.builtin.git:
@@ -36,12 +37,106 @@
       {{ docker_stacks_setup | default([])
          + [{'stack': item,
              'project': stack_setup.project | default('', true),
+             'provides': stack_setup.provides | default([], true)
+                         | map(attribute='name') | list,
+             'needs_host': stack_setup.needs_host | default([], true),
+             'needs_fleet': stack_setup.needs_fleet | default([], true),
              'folders': stack_setup.folders | default([], true),
              'files': stack_setup.files | default([], true),
              'firewall': stack_setup.firewall | default([], true)}] }}
   vars:
     stack_setup: "{{ lookup('ansible.builtin.file', docker_stacks_local_checkout ~ '/stacks/' ~ item ~ '/setup.yaml') | from_yaml }}"
   loop: "{{ docker_stacks_list }}"
+
+# build.py rolls each container's needs up into its stack and cancels the ones
+# the stack satisfies itself. A needs_stack that survives is a missing container
+# and fails the build, so it never gets here. What does get here is what the
+# stack wants from elsewhere: needs_host from another stack on this host,
+# needs_fleet from a host that may not exist yet.
+#
+# provides only lists what reaches past the stack, which is why matching a
+# needs_host against it is sound. A stack's own Postgres sits on an internal
+# network and is not in there, so it can never answer for a neighbour.
+#
+# The inventory holds what a host runs once the site is finished, so nothing
+# there changes at the handover. A stack left wanting something from the fleet
+# comes out of a bootstrapping run instead. Komodo still decides what actually
+# runs; this only prepares the host.
+- name: Drop the stacks that need the rest of the fleet
+  ansible.builtin.set_fact:
+    docker_stacks_setup: "{{ standalone }}"
+    docker_stacks_list: "{{ standalone | map(attribute='stack') | list }}"
+  vars:
+    standalone: "{{ docker_stacks_setup | selectattr('needs_fleet', 'eq', []) | list }}"
+  when: docker_stacks_bootstrap | bool
+
+- name: Work out what nothing left on the host provides
+  ansible.builtin.set_fact:
+    docker_stacks_unmet: >-
+      {{ docker_stacks_setup | map(attribute='needs_host') | flatten | unique
+         | difference(docker_stacks_setup | map(attribute='provides') | flatten)
+         | list }}
+
+# Dropping the stacks above can leave something behind that was published
+# through a Traefik one of them would have run, so a stand-in takes its place.
+# Only on a bootstrapping run: on a normal one an unmet need means the host's
+# stack list is wrong, and the assert below says so rather than papering over
+# it. A stand-in needs nothing itself, so nothing here has to resolve again.
+- name: Add a stand-in for each service nothing provides
+  when:
+    - docker_stacks_bootstrap | bool
+    - docker_stacks_standin_list | length > 0
+  vars:
+    docker_stacks_standin_list: >-
+      {{ docker_stacks_unmet | intersect(docker_stacks_standins.keys() | list)
+         | map('extract', docker_stacks_standins)
+         | unique | difference(docker_stacks_list) | list }}
+  block:
+    - name: Check each stand-in has a generated setup file
+      ansible.builtin.assert:
+        that: stack_setup_path is file
+        fail_msg: >-
+          {{ stack_setup_path }} is missing. Check docker_stacks_standins, or
+          run scripts/build.py in docker-stacks and commit its output.
+        quiet: true
+      vars:
+        stack_setup_path: "{{ docker_stacks_local_checkout }}/stacks/{{ item }}/setup.yaml"
+      loop: "{{ docker_stacks_standin_list }}"
+
+    - name: Read each stand-in's setup file
+      ansible.builtin.set_fact:
+        docker_stacks_list: "{{ docker_stacks_list + [item] }}"
+        docker_stacks_setup: >-
+          {{ docker_stacks_setup
+             + [{'stack': item,
+                 'project': stack_setup.project | default('', true),
+                 'provides': stack_setup.provides | default([], true)
+                             | map(attribute='name') | list,
+                 'needs_host': stack_setup.needs_host | default([], true),
+                 'needs_fleet': stack_setup.needs_fleet | default([], true),
+                 'folders': stack_setup.folders | default([], true),
+                 'files': stack_setup.files | default([], true),
+                 'firewall': stack_setup.firewall | default([], true)}] }}
+      vars:
+        stack_setup: "{{ lookup('ansible.builtin.file', docker_stacks_local_checkout ~ '/stacks/' ~ item ~ '/setup.yaml') | from_yaml }}"
+      loop: "{{ docker_stacks_standin_list }}"
+
+- name: Check nothing is left wanting a service this host has no stack for
+  ansible.builtin.assert:
+    that: still_unmet | length == 0
+    fail_msg: >-
+      Nothing in {{ docker_stacks_list | join(', ') }} provides
+      {{ still_unmet | join(', ') }}, which a stack listed there needs on this
+      same host. Either a stack is missing a container it depends on, or the
+      stack that provides it is missing from this host in the inventory. A
+      stand-in in docker_stacks_standins covers it on a run with
+      docker_stacks_bootstrap=true.
+    quiet: true
+  vars:
+    still_unmet: >-
+      {{ docker_stacks_setup | map(attribute='needs_host') | flatten | unique
+         | difference(docker_stacks_setup | map(attribute='provides') | flatten)
+         | list }}
 
 - name: Check every stack has a project name
   ansible.builtin.assert:

@@ -25,6 +25,22 @@ docker_stacks_logs_dir: "/opt/docker/logs"
 docker_stacks_folder_owner: "{{ admin_name }}"
 docker_stacks_folder_group: 101000
 
+# True only while the site is still being built and the fleet services a host's
+# real stacks need are not up yet. The role then leaves out every stack whose
+# setup.yaml still lists a needs_fleet service: system-agent, which writes to
+# the VictoriaMetrics backends, and traefik-agent, which wants tf01's Redis.
+# Pass it on the run that needs it, with -e or the provision-stacks Template's
+# Bootstrap answer, so the inventory holds each host's finished stack list from
+# the day the host is created and never has to be edited again at the handover.
+docker_stacks_bootstrap: false
+
+# Stands in for a service that the dropped stacks would have provided, keyed by
+# the needs_host name nothing left on the host answers to. Used only on a
+# bootstrapping run, and only when no stack still listed provides that service.
+# Empty adds nothing, which makes an unmet need an error instead.
+docker_stacks_standins:
+  traefik: "traefik-bootstrap"
+
 # CIDR that firewall rules marked `allow_from: internal` are scoped to. Required
 # once any listed stack has such a rule, and the role stops before changing
 # anything if it is empty.
