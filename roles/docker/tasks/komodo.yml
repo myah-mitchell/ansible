@@ -179,6 +179,34 @@
   when: komodo_onboarding_key | length > 0
   no_log: true
 
+# Periphery's private key is kept on the persistent disk, so a rebuilt VM
+# reconnects to Core as the same host instead of being onboarded again. The
+# folder is owned by whichever komodo uid this VM has, which can differ from the
+# old VM's, so ownership is set on every run. Only the folder itself is
+# recursive, and it holds nothing but the key.
+- name: Create the folder for Periphery's private key
+  ansible.builtin.file:
+    path: "{{ komodo_private_key_dir }}"
+    state: directory
+    owner: komodo
+    group: docker
+    mode: '0700'
+
+- name: Give komodo the key already in that folder, if there is one
+  ansible.builtin.file:
+    path: "{{ komodo_private_key_dir }}"
+    owner: komodo
+    group: docker
+    recurse: true
+
+- name: Configure Komodo private key location
+  ansible.builtin.lineinfile:
+    path: /home/komodo/.config/komodo/periphery.config.toml
+    regexp: '^#?\s*private_key\s*='
+    line: "private_key = \"file:{{ komodo_private_key_dir }}/periphery.key\""
+  become: true
+  become_user: komodo
+
 - name: Enable Komodo periphery user service
   ansible.builtin.systemd:
     name: periphery.service

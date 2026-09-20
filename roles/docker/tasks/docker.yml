@@ -1,49 +1,151 @@
 ---
-- name: Create LVM Volume Group on /dev/sdb
-  community.general.lvg:
-    vg: docker-vg
-    pvs: /dev/sdb
-    pvresize: true
+- name: Find the Docker root and persistent disks
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ docker_root_device }}"
+    - "{{ docker_persist_device }}"
+  register: docker_disks
 
-- name: Create Docker Root Partition
-  community.general.lvol:
-    vg: docker-vg
-    lv: docker-root
-    size: 50%VG
-    shrink: false
-    resizefs: true
+- name: Stop if a disk is missing
+  ansible.builtin.assert:
+    that: item.stat.exists
+    fail_msg: >-
+      {{ item.item }} does not exist. The VM needs scsi1 from the template and
+      a scsi2 added with qm set, as provision-a-vm.md in docker-stacks
+      describes. If both are attached, list /dev/disk/by-id and set
+      docker_root_device and docker_persist_device to match.
+    quiet: true
+  loop: "{{ docker_disks.results }}"
+  loop_control:
+    label: "{{ item.item }}"
 
-- name: Create an ext4 filesystem on /dev/docker-vg/docker-root
+# The filesystem module leaves a disk that already has a filesystem alone, and
+# refuses to replace one of a different type, so a disk moved in from another
+# VM keeps its data.
+- name: Create an ext4 filesystem on the Docker root disk
   community.general.filesystem:
     fstype: ext4
-    dev: /dev/docker-vg/docker-root
+    dev: "{{ docker_root_device }}"
+    opts: "-L {{ docker_root_label }}"
 
-- name: Mount new Docker Root filesystem
+- name: Mount the Docker root filesystem
   ansible.posix.mount:
     path: /var/lib/docker
-    src: /dev/docker-vg/docker-root
+    src: "LABEL={{ docker_root_label }}"
     fstype: ext4
+    opts: defaults,nofail
     state: mounted
 
-- name: Create Docker Data Partition
-  community.general.lvol:
-    vg: docker-vg
-    lv: docker-data
-    size: 50%VG
-    shrink: false
-    resizefs: true
-
-- name: Create an ext4 filesystem on /dev/docker-vg/docker-data
+- name: Create an ext4 filesystem on the persistent disk
   community.general.filesystem:
     fstype: ext4
-    dev: /dev/docker-vg/docker-data
+    dev: "{{ docker_persist_device }}"
+    opts: "-L {{ docker_persist_label }}"
 
-- name: Mount new Docker Data filesystem
+- name: Mount the persistent filesystem
   ansible.posix.mount:
-    path: /opt/docker
-    src: /dev/docker-vg/docker-data
+    path: "{{ docker_persist_mount }}"
+    src: "LABEL={{ docker_persist_label }}"
     fstype: ext4
+    opts: defaults,nofail
     state: mounted
+
+# Only reached once the mount above has succeeded, so these are created on the
+# disk and never under the empty mount point.
+- name: Create the folders on the persistent disk
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ docker_persist_mount }}/volumes", mode: '0755' }
+    - { path: "{{ docker_persist_mount }}/logs", mode: '0755' }
+    - { path: "{{ docker_persist_mount }}/host", mode: '0755' }
+    - { path: "{{ docker_persist_mount }}/host/ssh", mode: '0700' }
+
+# Bind mounts rather than symlinks, so Docker, Komodo, and the stacks role all
+# see an ordinary folder at the path they already use.
+- name: Bind the volumes and logs folders to where the stacks expect them
+  ansible.posix.mount:
+    path: "{{ item.path }}"
+    src: "{{ docker_persist_mount }}/{{ item.folder }}"
+    fstype: none
+    opts: bind,nofail
+    state: mounted
+  loop:
+    - { path: "{{ docker_volumes_mount }}", folder: volumes }
+    - { path: "{{ docker_logs_mount }}", folder: logs }
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Create Docker systemd drop-in folder
+  ansible.builtin.file:
+    path: /etc/systemd/system/docker.service.d
+    state: directory
+    mode: '0755'
+
+# nofail keeps a missing disk from stopping the boot, so the host stays
+# reachable over SSH. Without this drop-in, Docker would start anyway and write
+# every container's data to the root disk under the empty mount point.
+- name: Keep Docker from starting without its disks
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/docker.service.d/require-disks.conf
+    owner: root
+    mode: '0644'
+    content: |
+      [Unit]
+      RequiresMountsFor=/var/lib/docker {{ docker_persist_mount }} {{ docker_volumes_mount }} {{ docker_logs_mount }}
+  notify: reload systemd
+
+- name: Apply the drop-in before Docker is installed
+  ansible.builtin.meta: flush_handlers
+
+# The host's SSH identity lives on the persistent disk, so a rebuilt VM answers
+# to the same host keys and nobody's known_hosts complains. Saved keys win when
+# they exist. Otherwise the ones cloud-init generated are saved. sshd itself is
+# left reading /etc/ssh, so a detached disk can never stop SSH from starting.
+- name: Look for saved SSH host keys
+  ansible.builtin.find:
+    paths: "{{ docker_persist_mount }}/host/ssh"
+    patterns: 'ssh_host_*'
+  register: docker_saved_ssh_keys
+
+- name: Restore the saved SSH host keys
+  ansible.builtin.copy:
+    src: "{{ item.path }}"
+    dest: "/etc/ssh/{{ item.path | basename }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "{{ '0644' if item.path.endswith('.pub') else '0600' }}"
+  loop: "{{ docker_saved_ssh_keys.files }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  notify: restart ssh for host keys
+  when: docker_saved_ssh_keys.matched > 0
+
+- name: Find this host's own SSH host keys
+  ansible.builtin.find:
+    paths: /etc/ssh
+    patterns: 'ssh_host_*'
+  register: docker_own_ssh_keys
+  when: docker_saved_ssh_keys.matched == 0
+
+- name: Save this host's SSH host keys
+  ansible.builtin.copy:
+    src: "{{ item.path }}"
+    dest: "{{ docker_persist_mount }}/host/ssh/{{ item.path | basename }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "{{ '0644' if item.path.endswith('.pub') else '0600' }}"
+  loop: "{{ docker_own_ssh_keys.files }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  when: docker_saved_ssh_keys.matched == 0
 
 - name: Install aptitude
   ansible.builtin.apt:
