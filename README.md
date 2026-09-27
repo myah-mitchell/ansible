@@ -121,7 +121,7 @@ ansible-playbook -i /path/to/fleet-private/hosts.yml site.yml -e target=ex01
 
 The setup, the files it reads, the environment variables it needs, and what it
 overwrites are in
-[One-run provisioning](https://myah-mitchell.github.io/docs/fleet-bootstrap/procedures/one-run-provisioning/).
+[How a host is built](https://myah-mitchell.github.io/docs/fleet-bootstrap/concepts/how-a-host-is-built/).
 
 ## Using your own environment
 

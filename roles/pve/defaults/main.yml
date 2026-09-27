@@ -13,8 +13,8 @@ ansible_private_repo_url: "https://github.com/{{ github_user }}/fleet-private"
 ansible_private_repo_token: ""
 
 # What the vendor snippet does on a clone's first boot. "provision" runs
-# provision.yml on the VM itself against the ubuntu_docker example host, as the
-# manual runbook expects. "minimal" only starts the guest agent and creates the
+# provision.yml on the VM itself against the ubuntu_docker example host, for a
+# clone made by hand. "minimal" only starts the guest agent and creates the
 # ansible_account login with ansible_ssh_public_keys, leaving provisioning and
 # the package upgrade to site.yml over SSH, where the VM's own inventory entry
 # applies. The snippet is shared by every clone on the node, so switching to
