@@ -187,3 +187,14 @@ Change it to your own username/org and every clone URL in the roles follows.
   and `templates/create-cloud-init-template.sh.j2`.
 - `private-repo.example/`: worked example of what the private repo should
   contain
+
+## License
+
+Copyright (C) 2026 Myah Mitchell. Licensed under the
+[GNU Affero General Public License v3.0 or later](LICENSE). You can use,
+modify, and share this code, but any modified version you distribute or offer
+over a network must be released under the same license with this notice kept.
+
+The audit rules in `roles/auditd/files/rules/` come from
+[linux-audit/audit-userspace](https://github.com/linux-audit/audit-userspace/tree/master/rules)
+and keep their original license.
