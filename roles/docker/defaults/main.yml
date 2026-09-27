@@ -68,7 +68,7 @@ komodo_core_address: ""
 
 # Core's own public key - not secret, safe to commit for real once known.
 # Extract it from km01's running Core and commit the real value here - see
-# docs/komodo-bootstrap.md in docker-stacks.
+# https://myah-mitchell.github.io/docs/fleet-bootstrap/hosts/km01/
 komodo_core_public_key: ""
 
 # Lets a new host's Periphery create its own Server in Core on first connect.

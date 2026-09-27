@@ -109,42 +109,19 @@ automatically.
 ## From nothing to running stacks: site.yml
 
 `site.yml` wraps `provision.yml` for Docker hosts built from the inventory. For
-each host in `target` it creates the Proxmox VM through OpenTofu when the
-private repo describes one for it (the `vms` role, running the
-[opentofu](https://github.com/myah-mitchell/opentofu) repo), waits for its
-first boot, runs `provision.yml` against it, then has Komodo deploy the host's
-Stacks through a Resource Sync (the `komodo_stacks` role).
+each host in `target` it creates the Proxmox VM through the
+[opentofu](https://github.com/myah-mitchell/opentofu) repo when the private repo
+describes one, waits for first boot, runs `provision.yml`, then has Komodo deploy
+the host's Stacks through a Resource Sync. `komodo-sync.yml` generates the files
+that sync reads.
 
 ```bash
 ansible-playbook -i /path/to/fleet-private/hosts.yml site.yml -e target=ex01
 ```
 
-That assumes the identity values and `server_password` are in the inventory
-(see [Quick start](#quick-start)). The VMs and the Proxmox servers they run
-on are in the private repo's `opentofu/prod.tfvars`, keyed by the host's
-`serverHostname` in lower case, and the VM's address there must match its
-`ansible_host`. A host with no VM there is left alone, so a host built by hand
-still gets provisioned and its Stacks deployed.
-
-Each host's Stacks are in the private repo's `komodo/stacks/<host>.toml`,
-which Komodo's Resource Sync reads. Those files are generated from the
-inventory's `docker_stacks` and docker-stacks' `komodo.env` files:
-
-```bash
-ansible-playbook -i /path/to/fleet-private/hosts.yml komodo-sync.yml
-```
-
-Commit the result to the private repo. `site.yml` stops at a host whose
-committed file no longer matches what `komodo-sync.yml` would write, so run it
-after changing a host's stacks and before `site.yml`.
-
-It needs `tofu` on the PATH, and reads OpenTofu's state encryption, Postgres
-connection and Proxmox API tokens, and a Komodo API key, from environment
-variables. `roles/vms/defaults/main.yml` and
-`roles/komodo_stacks/defaults/main.yml` list them, and the run stops early
-when one is missing. `--check` shows OpenTofu's plan and skips the sync. The
-setup, including the Resource Sync and the Semaphore Template, is in
-docker-stacks' `docs/one-run-provisioning.md`.
+The setup, the files it reads, the environment variables it needs, and what it
+overwrites are in
+[One-run provisioning](https://myah-mitchell.github.io/docs/fleet-bootstrap/procedures/one-run-provisioning/).
 
 ## Using your own environment
 

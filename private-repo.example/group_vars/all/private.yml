@@ -20,8 +20,8 @@ ansible_ssh_public_keys: []
 komodo_core_address: ""
 
 # Core's own public key. It is not secret, so commit the real value here once
-# km01's Core is running. docs/komodo-bootstrap.md in docker-stacks shows how
-# to extract it.
+# km01's Core is running. The km01 runbook shows how to extract it:
+# https://myah-mitchell.github.io/docs/fleet-bootstrap/hosts/km01/
 komodo_core_public_key: ""
 
 # CA certs to trust on every host, as a list of {name, content}. Empty here,

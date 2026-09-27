@@ -15,7 +15,8 @@
 #
 #   ansible-playbook site.yml -e target=ci01
 #
-# See docs/one-run-provisioning.md in docker-stacks for the setup this needs.
+# See https://myah-mitchell.github.io/docs/fleet-bootstrap/procedures/one-run-provisioning/
+# for the setup this needs.
 
 - name: Create missing VMs
   hosts: "{{ target }}"

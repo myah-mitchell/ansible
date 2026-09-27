@@ -166,7 +166,8 @@
   when: komodo_core_public_key | length > 0
 
 # Only touched when a fresh onboarding key is actually passed in on this
-# run (e.g. docs/ci01-bootstrap.md step 5) - leaves an already-onboarded
+# run (e.g. step 5 of Provisioning a VM,
+# https://myah-mitchell.github.io/docs/fleet-bootstrap/procedures/provision-a-vm/) - leaves an already-onboarded
 # host's config alone otherwise, matching the installer's own
 # "not needed if connecting as Server that already exists" note.
 - name: Configure Komodo onboarding key
