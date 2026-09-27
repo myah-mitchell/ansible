@@ -17,9 +17,12 @@ docker_proxy_network: proxy
 # one disk a rebuilt VM takes over from the VM it replaces.
 #
 # Each disk gets an ext4 filesystem directly, with no LVM and no partition
-# table, and is mounted by label. Grow one with qm resize on the Proxmox host
-# and then resize2fs on the device here. An existing filesystem is never
-# reformatted, which is what lets a moved disk keep its data.
+# table, and is mounted by label. Grow the persistent disk through its size in
+# the tfvars file, and the Docker disk with qm resize on the Proxmox host, then
+# run resize2fs on the device here. See
+# https://myah-mitchell.github.io/docs/fleet-bootstrap/procedures/grow-a-disk/.
+# An existing filesystem is never reformatted, which is what lets a moved disk
+# keep its data.
 docker_root_device: /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi1
 docker_root_label: docker-root
 docker_persist_device: /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi2
