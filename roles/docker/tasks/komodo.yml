@@ -165,11 +165,10 @@
   become_user: komodo
   when: komodo_core_public_key | length > 0
 
-# Only touched when a fresh onboarding key is actually passed in on this
-# run (e.g. step 5 of Provisioning a VM,
-# https://myah-mitchell.github.io/docs/fleet-bootstrap/procedures/provision-a-vm/) - leaves an already-onboarded
-# host's config alone otherwise, matching the installer's own
-# "not needed if connecting as Server that already exists" note.
+# Only touched when an onboarding key is passed in on this run. See
+# https://myah-mitchell.github.io/docs/fleet-bootstrap/concepts/how-a-host-is-built/#onboarding.
+# An already-onboarded host's config is left alone otherwise, matching the
+# installer's own "not needed if connecting as Server that already exists" note.
 - name: Configure Komodo onboarding key
   ansible.builtin.lineinfile:
     path: /home/komodo/.config/komodo/periphery.config.toml

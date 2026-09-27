@@ -15,8 +15,10 @@
 #
 #   ansible-playbook site.yml -e target=ci01
 #
-# See https://myah-mitchell.github.io/docs/fleet-bootstrap/procedures/one-run-provisioning/
-# for the setup this needs.
+# See https://myah-mitchell.github.io/docs/fleet-bootstrap/concepts/how-a-host-is-built/
+# for what each stage does, and
+# https://myah-mitchell.github.io/docs/fleet-bootstrap/foundation/ for the setup
+# this needs.
 
 - name: Create missing VMs
   hosts: "{{ target }}"
