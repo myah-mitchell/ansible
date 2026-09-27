@@ -1,0 +1,3 @@
+---
+vms_project_path: "{{ vms_local_checkout }}/envs/{{ vms_env }}"
+vms_tofu: "{{ vms_tofu_binary if vms_tofu_binary | length > 0 else vms_tofu_lookup.stdout }}"

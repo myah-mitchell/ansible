@@ -1,0 +1,43 @@
+---
+#### VMS role creates the Proxmox VMs for the hosts in the play, by running the
+#### opentofu repo's configuration on the control node. It never connects to
+#### the VMs themselves; site.yml waits for them and provisions them afterwards.
+####
+#### The VMs are described in OpenTofu's own variables file, not the inventory:
+#### opentofu/<vms_env>.tfvars in the private repo, next to hosts.yml. It holds
+#### the Proxmox servers and clusters, and each VM's server, pinned node, size,
+#### disks and network. See envs/<env>/terraform.tfvars.example in the opentofu
+#### repo. A VM's name there is the host's serverHostname, lowered, which is
+#### how the two are matched, and its address must match ansible_host.
+####
+#### Only the play's hosts are targeted, so a run creates or changes only the
+#### VMs it is aimed at. A host with no VM in the file is one built by hand,
+#### and the later plays in site.yml leave its VM steps out. Without the file
+#### the role does nothing.
+
+# The opentofu repo, checked out once per run on the control node.
+vms_repo_url: "https://github.com/{{ github_user }}/opentofu.git"
+vms_repo_version: "main"
+vms_local_checkout: "/tmp/ansible-opentofu-checkout"
+vms_env: "prod"
+
+# Path to the tofu binary. Empty looks it up on PATH.
+vms_tofu_binary: ""
+
+# OpenTofu's variables file, in the private repo next to the inventory.
+vms_var_file: "{{ inventory_dir }}/opentofu/{{ vms_env }}.tfvars"
+
+# "pg" keeps state in the Postgres database PG_CONN_STR points at, which is
+# what Semaphore uses. "local" keeps it in a file under vms_local_state_dir,
+# for trying the pipeline from a workstation. Moving between the two does not
+# copy the state across.
+vms_backend: "pg"
+vms_local_state_dir: "{{ lookup('env', 'HOME') }}/.local/state/ansible-opentofu"
+
+# Environment variables the configuration reads. The run stops early when one
+# is missing, rather than failing halfway through an init. The Proxmox API
+# tokens are read from the environment too, as TF_VAR_server_api_tokens, a
+# JSON object keyed like the file's servers, or PROXMOX_VE_API_TOKEN for a
+# single server. They are not checked here, since either will do.
+vms_required_env:
+  - TF_ENCRYPTION

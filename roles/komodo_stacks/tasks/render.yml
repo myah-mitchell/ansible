@@ -1,0 +1,35 @@
+---
+# Renders this host's Stacks as a Komodo sync file, from the list the stacks
+# role worked out. komodo-sync.yml writes it for every host. site.yml only
+# renders it in check mode, to find out whether the committed copy still
+# matches, and never writes it.
+- name: Start this host's Stack list
+  ansible.builtin.set_fact:
+    komodo_sync_stacks: []
+
+- name: Work out each Stack's name and Environment
+  ansible.builtin.set_fact:
+    komodo_sync_stacks: "{{ komodo_sync_stacks + [entry] }}"
+  vars:
+    entry:
+      name: "{{ item ~ '-' ~ komodo_stacks_server if item in komodo_stacks_per_host else item }}"
+      run_directory: "stacks/{{ item }}"
+      environment: >-
+        {{ lookup('ansible.builtin.file', docker_stacks_local_checkout ~ '/stacks/' ~ item ~ '/komodo.env')
+           | komodo_env(komodo_stack_env[item] | default({}), {
+               'SERVER_NAME': serverHostname | lower,
+               'SUB_DOMAIN_NAME': komodo_stacks_sub_domain_name,
+               'DOMAIN_NAME': komodo_stacks_domain_name,
+               'TRAEFIK_AUTH_CHAIN': komodo_stacks_bootstrap_auth_chain if docker_stacks_bootstrap | bool else ''}) }}
+  loop: "{{ docker_stacks_list }}"
+
+- name: Write this host's sync file
+  ansible.builtin.template:
+    src: stacks.toml.j2
+    dest: "{{ komodo_sync_dir }}/{{ inventory_hostname }}.toml"
+    mode: "0644"
+  register: komodo_sync_file
+  check_mode: "{{ komodo_sync_check | default(false) }}"
+  diff: "{{ komodo_sync_check | default(false) }}"
+  delegate_to: localhost
+  become: false

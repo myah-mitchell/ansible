@@ -1,0 +1,128 @@
+---
+# The VM's name in the variables file, the same one Proxmox shows.
+- name: Work out this host's VM name
+  ansible.builtin.set_fact:
+    vms_name: "{{ serverHostname | default(inventory_hostname, true) | lower }}"
+
+# This block runs once, on the control node, for every host in the play. The
+# play's hosts may not exist yet, so nothing may connect to them.
+- name: Create the VMs through OpenTofu
+  delegate_to: localhost
+  run_once: true
+  become: false
+  block:
+    - name: Check the environment OpenTofu reads is set
+      ansible.builtin.assert:
+        that: lookup('ansible.builtin.env', item) | length > 0
+        fail_msg: >-
+          {{ item }} is not set. OpenTofu reads it from the environment of the
+          ansible-playbook process, so set it there (in Semaphore, as a secret
+          in the Template's Environment).
+        quiet: true
+      loop: "{{ vms_required_env + (['PG_CONN_STR'] if vms_backend == 'pg' else []) }}"
+
+    - name: Clone/update opentofu on the control node
+      ansible.builtin.git:
+        repo: "{{ vms_repo_url }}"
+        dest: "{{ vms_local_checkout }}"
+        version: "{{ vms_repo_version }}"
+        depth: 1
+        force: true
+      # A scratch checkout on the control node, needed for a check-mode plan too.
+      check_mode: false
+
+    - name: Find the tofu binary
+      ansible.builtin.command:
+        cmd: sh -c 'command -v tofu'
+      register: vms_tofu_lookup
+      changed_when: false
+      check_mode: false
+      when: vms_tofu_binary | length == 0
+
+    # Copied in as an auto-loaded file rather than passed with -var-file, since
+    # the providers are made per server, and the collection runs commands
+    # such as providers schema that need the variables but get no -var-file.
+    - name: Copy the variables file into the checkout
+      ansible.builtin.copy:
+        src: "{{ vms_var_file }}"
+        dest: "{{ vms_project_path }}/private.auto.tfvars"
+        mode: "0600"
+      check_mode: false
+
+    # The configuration declares a pg backend. An override file swaps it for a
+    # local one, and is removed again for a pg run in case an earlier local run
+    # left it behind in the same checkout.
+    - name: Create the local state folder
+      ansible.builtin.file:
+        path: "{{ vms_local_state_dir }}"
+        state: directory
+        mode: "0700"
+      check_mode: false
+      when: vms_backend == 'local'
+
+    - name: Choose the state backend
+      ansible.builtin.copy:
+        dest: "{{ vms_project_path }}/backend_override.tf"
+        content: |
+          terraform {
+            backend "local" {
+              path = "{{ vms_local_state_dir }}/{{ vms_env }}.tfstate"
+            }
+          }
+        mode: "0600"
+      check_mode: false
+      when: vms_backend == 'local'
+
+    - name: Remove the local backend override
+      ansible.builtin.file:
+        path: "{{ vms_project_path }}/backend_override.tf"
+        state: absent
+      check_mode: false
+      when: vms_backend != 'local'
+
+    # Every host in the play is a target, by its VM name. A host the variables
+    # file has no VM for matches nothing, and the file's other VMs are left
+    # alone until a play targets them. check_destroy refuses any plan that
+    # would destroy something, on top of the module's own prevent_destroy. In
+    # check mode this stops at a plan.
+    - name: Apply the configuration for this play's VMs
+      cloud.terraform.terraform:
+        binary_path: "{{ vms_tofu }}"
+        project_path: "{{ vms_project_path }}"
+        state: present
+        force_init: true
+        init_reconfigure: true
+        check_destroy: true
+        targets: >-
+          {{ ansible_play_hosts_all | map('extract', hostvars, 'vms_name')
+             | map('regex_replace', '^', 'module.vm["') | map('regex_replace', '$', '"]') | list }}
+
+    # The vms output lists every VM in the variables file, created or not,
+    # which is how the later plays tell a VM from a host built by hand. Only a
+    # real apply writes it, so a check-mode run sees it as of the last one.
+    - name: Read the VMs OpenTofu knows
+      ansible.builtin.command:
+        cmd: "{{ vms_tofu }} output -json"
+        chdir: "{{ vms_project_path }}"
+      register: vms_output
+      changed_when: false
+      check_mode: false
+
+- name: Note this host's VM
+  ansible.builtin.set_fact:
+    vms_vm: "{{ vms_known[vms_name] }}"
+  vars:
+    vms_known: "{{ (vms_output.stdout | from_json).vms.value | default({}) }}"
+  when: vms_name in vms_known
+
+# The address is written twice, once for OpenTofu and once for Ansible, so a
+# mismatch is caught here rather than as a VM nobody can reach.
+- name: Check the VM's address matches ansible_host
+  ansible.builtin.assert:
+    that: vms_vm.ipv4_address == ansible_host | default(inventory_hostname)
+    fail_msg: >-
+      OpenTofu gives {{ vms_name }} the address {{ vms_vm.ipv4_address }}, but
+      its ansible_host in the inventory is {{ ansible_host | default('unset') }}.
+      Make the two agree.
+    quiet: true
+  when: vms_vm is defined

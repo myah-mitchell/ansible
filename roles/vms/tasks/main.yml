@@ -1,0 +1,7 @@
+---
+# Skipped when the inventory has no OpenTofu variables file next to it, so the
+# example inventory, or a run from a checkout without the private repo, needs
+# no Proxmox or OpenTofu settings.
+- name: Include VM Creation Tasks
+  ansible.builtin.include_tasks: vms.yml
+  when: vms_var_file is file

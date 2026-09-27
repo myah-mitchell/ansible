@@ -1,0 +1,4 @@
+---
+komodo_api_headers:
+  X-Api-Key: "{{ komodo_api_key }}"
+  X-Api-Secret: "{{ komodo_api_secret }}"
