@@ -29,9 +29,11 @@ docker_stacks_folder_group: 101000
 # real stacks need are not up yet. The role then leaves out every stack whose
 # setup.yaml still lists a needs_fleet service: system-agent, which writes to
 # the VictoriaMetrics backends, and traefik-agent, which wants tf01's Redis.
-# Pass it on the run that needs it, with -e or the provision-stacks Template's
-# Bootstrap answer, so the inventory holds each host's finished stack list from
-# the day the host is created and never has to be edited again at the handover.
+# Set it on the host in the inventory, so its docker_stacks can hold the
+# finished stack list from the day the host is created, and remove it at the
+# handover. komodo-sync.yml reads it too, so regenerate and commit the Komodo
+# sync files after changing it; site.yml stops if they disagree. A one-off run
+# of provision.yml alone can still pass it with -e.
 docker_stacks_bootstrap: false
 
 # Stands in for a service that the dropped stacks would have provided, keyed by

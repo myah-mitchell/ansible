@@ -12,3 +12,4 @@ collections:
 - ansible.posix  # authorized_key, mount, sysctl
 - community.general  # lvg, lvol, filesystem, ufw, timezone
 - community.crypto  # openssl_privatekey, openssl_csr
+- cloud.terraform  # terraform (runs OpenTofu in the vms role)

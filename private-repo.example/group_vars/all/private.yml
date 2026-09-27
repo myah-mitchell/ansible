@@ -1,17 +1,16 @@
 ---
-#### private.yml — everything the public ansible repo would rather not
+#### private.yml: everything the public ansible repo would rather not
 #### publish, in one place. This is a starter skeleton: fill in your real
-#### values below, then have your bootstrap step copy this file (and
-#### hosts.yml) over the public repo's group_vars/all/private.yml and
-#### hosts.yml before running ansible-playbook. See README.md in this
-#### folder for the exact commands. This file is loaded automatically by
-#### Ansible for every host (it lives in group_vars/all/).
+#### values below. Ansible loads it for every host, because it sits in
+#### group_vars/all/ next to hosts.yml, whether you point -i at the private
+#### repo's hosts.yml or copy both into a checkout of the public repo. See
+#### README.md in this folder.
 
-# SSH public keys to install. Empty here — no keys are installed. See
+# SSH public keys to install. Empty here, so no keys are installed. See
 # roles/users/tasks/*.yml and roles/users/defaults/main.yml.
 admin_ssh_public_keys: []
 ansible_ssh_public_keys: []
-# client_ssh_public_keys defaults to admin_ssh_public_keys — only set this if
+# client_ssh_public_keys defaults to admin_ssh_public_keys. Only set this if
 # the end-user login (client_account) should have a different key than admin:
 # client_ssh_public_keys: []
 
@@ -20,13 +19,13 @@ ansible_ssh_public_keys: []
 # its real hostname once they do.
 komodo_core_address: ""
 
-# Core's own public key - not secret, safe to commit for real once known.
-# Extract it from km01's running Core and commit the real value here - see
-# docs/komodo-bootstrap.md in docker-stacks.
+# Core's own public key. It is not secret, so commit the real value here once
+# km01's Core is running. docs/komodo-bootstrap.md in docker-stacks shows how
+# to extract it.
 komodo_core_public_key: ""
 
-# CA certs to trust on every host, as a list of {name, content}. Empty here
-# — no CAs are installed. See roles/certificates/tasks/certificates.yml.
+# CA certs to trust on every host, as a list of {name, content}. Empty here,
+# so no CAs are installed. See roles/certificates/tasks/certificates.yml.
 ca_certificates: []
 
 # SSH login banner (/etc/legal). See roles/ssh/defaults/main.yml and
@@ -42,7 +41,17 @@ client_account: "clientuser"
 
 # Read-only PAT scoped to just this private repo. Baked into the cloud-init
 # template (see roles/pve/templates/cloudinit-vendor.yml.j2) so freshly
-# provisioned VMs can pull this same private overlay on first boot. Empty
-# here — a fresh VM then just runs against the public repo's sanitized
-# example data instead. See roles/pve/defaults/main.yml.
+# provisioned VMs can pull this same private repo on first boot. Empty
+# here, so a fresh VM runs against the public repo's sanitized example data
+# instead. See roles/pve/defaults/main.yml.
 ansible_private_repo_token: ""
+
+# site.yml: switch the PVE cloud-init snippet to minimal once site.yml is how
+# VMs get built, so a new VM waits for it instead of provisioning itself as the
+# ubuntu_docker example host. See roles/pve/defaults/main.yml.
+# pve_cloudinit_mode: "minimal"
+
+# site.yml: the sub-domain each Komodo Stack's SUB_DOMAIN_NAME gets, with its
+# trailing dot, for example "home.". Komodo's API key and secret are
+# environment variables. See roles/komodo_stacks/defaults/main.yml.
+komodo_stacks_sub_domain_name: ""

@@ -1,0 +1,80 @@
+---
+# Writes the Komodo Resource Sync files for every host in the inventory that
+# runs Periphery and has a docker_stacks list, one TOML file per host, into
+# komodo/stacks/ next to the inventory. Point it at the private repo's
+# inventory, then review the diff and commit it there:
+#
+#   ansible-playbook -i ../fleet-private/hosts.yml komodo-sync.yml
+#
+# Nothing connects to the hosts. Each file holds the host's Stacks with their
+# Environment filled in from docker-stacks' komodo.env files, so run it again
+# after changing a host's stacks in the inventory, and after a docker-stacks
+# change to a komodo.env file. site.yml stops at a host whose committed file
+# is out of date. A file for a host that no longer runs Stacks is removed, but
+# the Stacks themselves stay in Komodo until deleted there.
+
+- name: Write the Komodo sync files
+  hosts: all
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+
+  vars:
+    komodo_sync_runs_stacks: >-
+      {{ (DOCKER | default(false) | bool) and (KOMODO | default(false) | bool)
+         and (docker_stacks | default([]) | length > 0) }}
+
+  tasks:
+    - name: Work out each host's stacks
+      ansible.builtin.include_role:
+        name: stacks
+        tasks_from: list
+        public: true
+      when: komodo_sync_runs_stacks | bool
+
+    - name: Create the sync folder
+      ansible.builtin.file:
+        path: "{{ inventory_dir }}/komodo/stacks"
+        state: directory
+        mode: "0755"
+      run_once: true
+      delegate_to: localhost
+
+    - name: Write each host's sync file
+      ansible.builtin.include_role:
+        name: komodo_stacks
+        tasks_from: render
+        public: true
+      when: komodo_sync_runs_stacks | bool
+
+    - name: Find the sync files already there
+      ansible.builtin.find:
+        paths: "{{ inventory_dir }}/komodo/stacks"
+        patterns: "*.toml"
+      register: komodo_sync_existing
+      run_once: true
+      delegate_to: localhost
+
+    # Kept by the whole inventory rather than this play's hosts, so a run with
+    # --limit leaves the other hosts' files alone.
+    - name: Remove the files of hosts that no longer run Stacks
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ komodo_sync_existing.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+      when: (item.path | basename | splitext | first) not in keep
+      run_once: true
+      delegate_to: localhost
+      vars:
+        keep: >-
+          {%- set keep = [] -%}
+          {%- for host in groups['all'] -%}
+            {%- set hv = hostvars[host] -%}
+            {%- if (hv.DOCKER | default(false) | bool) and (hv.KOMODO | default(false) | bool)
+                  and (hv.docker_stacks | default([]) | length > 0) -%}
+              {{- keep.append(host) or '' -}}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ keep }}

@@ -1,3 +1,10 @@
 ansible_collections/
 __pycache__/
 
+
+# The private repo's files, which live in their own checkout. A copy here would
+# never be committed, and a private.yml here would override the private repo's
+# own, since Ansible ranks the playbook's group_vars above the inventory's.
+/group_vars/all/private.yml
+/opentofu/
+/komodo/

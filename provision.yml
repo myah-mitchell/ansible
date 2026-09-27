@@ -5,12 +5,10 @@
   become: true
   gather_facts: true
 
-  vars:
-    short_name: ""
-    abbr_name: ""
-    location_abbr: ""
-    domain_name: ""
-
+  # Everything but target can come from the inventory, per host or per group
+  # (all: vars: in hosts.yml for fleet-wide values), or from -e for the whole
+  # run. Only what neither sets is asked for, once per run, by the pre_tasks.
+  # vars_prompt cannot do that: it always asks unless -e sets the value.
   vars_prompt:
     - name: target
       prompt: |
@@ -21,30 +19,21 @@
       private: no
       default: ubuntu
 
-    - name: server_password
-      prompt: Enter Admin Password
-      private: true
-      confirm: true
+  vars:
+    provision_questions:
+      - { name: short_name, default: "MYMI" }
+      - { name: abbr_name, default: "mm" }
+      - { name: location_abbr, default: "h" }
+      - { name: domain_name, default: "myah-mitchell.com" }
 
-    - name: short_name
-      prompt: short_name
-      default: "MYMI"
-      private: false
-
-    - name: abbr_name
-      prompt: abbr_name
-      default: "mm"
-      private: false
-
-    - name: location_abbr
-      prompt: location_abbr
-      default: "h"
-      private: false
-
-    - name: domain_name
-      prompt: domain_name
-      default: "myah-mitchell.com"
-      private: false
+  pre_tasks:
+    - name: Ask for the values the inventory leaves unset
+      ansible.builtin.include_role:
+        name: provision
+        tasks_from: ask
+        apply:
+          tags: always
+      tags: always
 
   roles:
     - role: packages

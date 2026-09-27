@@ -46,7 +46,7 @@ docker_logs_mount: /opt/docker/logs
 # with no edit here. Docker's repo can trail a brand-new Ubuntu release by
 # weeks. If a new template's first boot fails at the Docker install for that
 # reason, pin this to the previous release's codename (for example "resolute")
-# in ansible-private's group_vars/all/private.yml until the suite appears.
+# in fleet-private's group_vars/all/private.yml until the suite appears.
 ubuntu_release: "{{ ansible_facts.distribution_release }}"
 container_count: 4
 default_container_name: docker
@@ -71,10 +71,13 @@ komodo_core_address: ""
 # docs/komodo-bootstrap.md in docker-stacks.
 komodo_core_public_key: ""
 
-# Left blank by default. Only pass a real value via `-e` at the CLI when
-# provisioning a brand-new host - generate it fresh in Komodo's UI/API right
-# before the run, never commit a real value here. It's single-use and
-# discarded by Komodo after the first successful connect.
+# Lets a new host's Periphery create its own Server in Core on first connect.
+# Never commit a real value: pass it with -e, or hold it as a Semaphore secret.
+# Komodo onboarding keys are not single-use. One key onboards any number of
+# hosts until it expires or is deleted, but only as Server names that do not
+# exist yet, unless the key was created as privileged. Anyone holding it can
+# add a Server under a new name, so give it an expiry, or delete it once the
+# hosts it was for are in.
 komodo_onboarding_key: ""
 
 # The Server resource name/id this Periphery should connect as in Core.

@@ -1,0 +1,21 @@
+# {{ inventory_hostname }}'s Stacks, for Komodo's Resource Sync.
+#
+# Written by the ansible repo's komodo-sync.yml from the inventory and
+# docker-stacks' komodo.env files. Do not edit it: change the inventory, run
+# komodo-sync.yml again, and commit what it writes. site.yml refuses to run
+# while this file is out of date.
+{% for stack in komodo_sync_stacks %}
+
+[[stack]]
+name = {{ stack.name | toml_string }}
+deploy = true
+
+[stack.config]
+server = {{ komodo_stacks_server | toml_string }}
+git_provider = {{ komodo_stacks_git_provider | toml_string }}
+repo = {{ komodo_stacks_repo | toml_string }}
+branch = {{ komodo_stacks_branch | toml_string }}
+run_directory = {{ stack.run_directory | toml_string }}
+file_paths = ["compose.yaml"]
+environment = {{ stack.environment | toml_string }}
+{% endfor %}

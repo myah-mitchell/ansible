@@ -5,12 +5,30 @@ pve_base_dir: "/etc/pve"
 
 # VMs stamped out from the cloud-init template built by this role (see
 # templates/cloudinit-vendor.yml.j2) clone the public ansible repo and, if a
-# token is set, this private overlay repo too. Empty by default: the
-# template then bootstraps with just the public repo's sanitized example
-# data. Set ansible_private_repo_token to a read-only PAT for it in a
+# token is set, the private repo too, and run against the private repo's
+# inventory. Empty by default: the template then bootstraps with just the
+# public repo's sanitized example data. The URL must be HTTPS. Set ansible_private_repo_token to a read-only PAT for it in a
 # private group_vars/all/private.yml, never here.
-ansible_private_repo_url: "https://github.com/{{ github_user }}/ansible-private"
+ansible_private_repo_url: "https://github.com/{{ github_user }}/fleet-private"
 ansible_private_repo_token: ""
+
+# What the vendor snippet does on a clone's first boot. "provision" runs
+# provision.yml on the VM itself against the ubuntu_docker example host, as the
+# manual runbook expects. "minimal" only starts the guest agent and creates the
+# ansible_account login with ansible_ssh_public_keys, leaving provisioning and
+# the package upgrade to site.yml over SSH, where the VM's own inventory entry
+# applies. The snippet is shared by every clone on the node, so switching to
+# minimal also stops hand-made clones from provisioning themselves.
+pve_cloudinit_mode: "provision"
+
+# PVE hosts that form one Proxmox cluster set the same name here, in hosts.yml.
+# A standalone server leaves it unset and is a cluster of its own. Every node
+# gets the vendor snippet, but only a cluster's first PVE host in inventory
+# order builds the cloud-init template, and the vms role clones from there, so
+# that host is the template_node of its server in the private repo's
+# opentofu/prod.tfvars.
+# Deliberately not given a default, which would make every server one cluster.
+# pve_cluster_name: "lab"
 
 # The Ubuntu release the cloud-init template is built from. The template's
 # VMID, name, and tag all derive from the version, so moving the fleet to a new

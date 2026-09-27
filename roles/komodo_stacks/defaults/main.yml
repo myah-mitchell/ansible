@@ -1,0 +1,80 @@
+---
+#### KOMODO_STACKS role deploys this host's Stacks through Komodo's Resource
+#### Sync. The stacks come from docker_stacks with the stacks role's bootstrap
+#### swap applied, the same list that role prepared the host with. Everything
+#### here runs on the control node.
+####
+#### The Stacks are defined in one TOML file per host, which komodo-sync.yml
+#### writes from the inventory and each stack's komodo.env in docker-stacks,
+#### into the private repo next to hosts.yml. Komodo reads the committed files.
+#### This role renders the host's file again, stops if the committed copy
+#### differs, waits for the host's Periphery, then runs the sync for this
+#### host's Stacks only and waits for them to be running.
+####
+#### A Stack's Environment comes from that file, so an edit made to it in the
+#### Komodo UI is undone by the next sync.
+
+# Off unless the host runs Periphery.
+komodo_stacks_manage: "{{ KOMODO | default(false) }}"
+
+# Core's API. The same address Periphery dials unless Core sits behind
+# something else for API clients.
+komodo_api_url: "{{ komodo_core_address | default('') }}"
+komodo_api_validate_certs: true
+# A Komodo service user's API key and secret. Read from the environment by
+# default, so Semaphore can hold them as secrets. The service user needs to
+# run the Resource Sync and read Servers and Stacks; an admin service user is
+# the simple way.
+komodo_api_key: "{{ lookup('ansible.builtin.env', 'KOMODO_API_KEY') }}"
+komodo_api_secret: "{{ lookup('ansible.builtin.env', 'KOMODO_API_SECRET') }}"
+
+# The Server this host's Stacks attach to, which is also the name Periphery
+# connects as. The docker role's default for komodo_connect_as is repeated
+# here, for komodo-sync.yml, which does not load that role.
+komodo_stacks_server: "{{ komodo_connect_as | default(serverHostname | lower) }}"
+
+# The Resource Sync in Komodo that reads the files, and where komodo-sync.yml
+# writes them: a folder in the private repo, next to the inventory. The Resource
+# Sync's resource path points at the same folder.
+komodo_sync_name: "fleet"
+komodo_sync_dir: "{{ inventory_dir }}/komodo/stacks"
+
+# How long to wait for this host's Periphery to show as connected. A freshly
+# onboarded host usually takes a few seconds.
+komodo_stacks_server_retries: 30
+komodo_stacks_server_delay: 10
+
+# Where Komodo pulls each Stack from. Same repo and branch the stacks role
+# prepared the host from.
+komodo_stacks_git_provider: "github.com"
+komodo_stacks_repo: "{{ github_user }}/docker-stacks"
+komodo_stacks_branch: "{{ docker_stacks_repo_version }}"
+
+# Stacks every VM runs its own copy of. Komodo wants Stack names unique, so
+# these get the host name on the end, like system-agent-ci01. The rest keep
+# their plain name.
+komodo_stacks_per_host:
+  - system-agent
+  - traefik-agent
+  - traefik-bootstrap
+  - crowdsec-agent
+  - dozzle-agent
+  - victoriametrics-agent
+
+# The values every Stack gets where its komodo.env has the key.
+komodo_stacks_sub_domain_name: ""
+komodo_stacks_domain_name: "{{ domain_name }}"
+# The Traefik auth chain for a bootstrapping run, when Authentik is not up
+# yet. A normal run leaves TRAEFIK_AUTH_CHAIN blank, which is the real chain.
+komodo_stacks_bootstrap_auth_chain: "chain-no-auth@file"
+
+# Per-stack values on top of those, keyed by stack folder name, for example:
+#   komodo_stack_env:
+#     system-agent:
+#       DOCKNS_WAN_IP: "[[DOCKNS_WAN_IP_DMZ]]"
+# Each key must have a line in that stack's komodo.env.
+komodo_stack_env: {}
+
+# How long to wait for the sync, and then for the Stacks to be running.
+komodo_stacks_deploy_retries: 90
+komodo_stacks_deploy_delay: 10
