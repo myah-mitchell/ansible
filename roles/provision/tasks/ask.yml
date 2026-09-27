@@ -1,0 +1,75 @@
+---
+# Run from provision.yml's pre_tasks. For each of provision_questions, and for
+# server_password, asks once for the run when some host in the play has no
+# value, and gives the answer only to the hosts without one. A value from the
+# inventory or from -e is never asked for and never replaced.
+#
+# Without a terminal, as under Semaphore, nothing can be asked. A missing
+# identity value then stops the run, and a missing server_password is taken as
+# empty, which leaves every password as it is.
+
+- name: Ask for the identity values
+  ansible.builtin.pause:
+    prompt: "{{ item.name }} [{{ item.default }}]"
+  loop: "{{ provision_questions }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: provision_answers
+  run_once: true
+  when: ansible_play_hosts_all | map('extract', hostvars) | selectattr(item.name, 'undefined') | list | length > 0
+
+# pause does not wait without a terminal. It returns an empty answer at once,
+# with a warning saying so, which is how an unanswered question is told apart
+# from one answered with Enter.
+- name: Check every missing value could be asked for
+  ansible.builtin.assert:
+    that: not_asked | length == 0
+    fail_msg: >-
+      {{ not_asked | join(', ') }} is not set for every host in this run, and
+      there is no terminal to ask on. Set it in hosts.yml, on the host, its
+      group, or under all: vars:, or pass it with -e.
+    quiet: true
+  run_once: true
+  vars:
+    not_asked: >-
+      {{ provision_answers.results | selectattr('user_input', 'defined')
+         | selectattr('warnings', 'defined') | map(attribute='item.name') | list }}
+
+- name: Use the answers where the inventory sets nothing
+  ansible.builtin.set_fact:
+    "{{ item.item.name }}": "{{ item.user_input if item.user_input | length > 0 else item.item.default }}"
+  loop: "{{ provision_answers.results | selectattr('user_input', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: hostvars[inventory_hostname][item.item.name] is undefined
+
+- name: Ask for the admin password
+  ansible.builtin.pause:
+    prompt: "Admin password (Enter leaves every password as it is)"
+    echo: false
+  register: provision_password
+  run_once: true
+  when: ansible_play_hosts_all | map('extract', hostvars) | selectattr('server_password', 'undefined') | list | length > 0
+
+- name: Confirm the admin password
+  ansible.builtin.pause:
+    prompt: "Admin password again"
+    echo: false
+  register: provision_password_again
+  run_once: true
+  when: provision_password.user_input | default('') | length > 0
+
+- name: Check both passwords match
+  ansible.builtin.assert:
+    that: provision_password.user_input == provision_password_again.user_input
+    fail_msg: The two passwords differ.
+    quiet: true
+  run_once: true
+  no_log: true
+  when: provision_password.user_input | default('') | length > 0
+
+- name: Use the password where the inventory sets none
+  ansible.builtin.set_fact:
+    server_password: "{{ provision_password.user_input | default('') }}"
+  no_log: true
+  when: server_password is undefined
